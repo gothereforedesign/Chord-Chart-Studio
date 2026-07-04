@@ -1,0 +1,8 @@
+{
+  "name": "New Chord Chart Studio",
+  "description": "A visual jazz lead-sheet creator, editor, and visual playback utility with chord-by-chord tactile customization and smart key transposition.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

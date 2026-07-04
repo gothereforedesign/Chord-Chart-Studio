@@ -1,0 +1,270 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter+Tight:wght@400;500;600;700&family=League+Gothic&family=PT+Sans+Narrow:wght@400;700&family=Roboto:wght@300;400;500;700;900&family=Roboto+Flex:wdth,wght@25..151,100..1000&family=Tulpen+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans+Condensed:wght@700&display=swap');
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Petaluma Script';
+  src: url('https://cdn.jsdelivr.net/gh/fretzeit/petaluma-script@master/dist/PetalumaScript-Regular.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/gh/fretzeit/petaluma-script@master/dist/PetalumaScript-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Heather Green';
+  src: url('/heathergreen.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Skinny Things';
+  src: url('/skinny_things.otf') format('opentype'),
+       url('/skinny_things.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-condensed: "Roboto Condensed", "Oswald", sans-serif;
+  --font-ultra-condensed: "Oswald", sans-serif;
+  --font-jazz: "Architects Daughter", "Patrick Hand", cursive, sans-serif;
+  --font-justhand: "Just Another Hand", cursive, sans-serif;
+  --font-cossette: "Cossette Titre", "Just Another Hand", cursive, sans-serif;
+  --font-spacemono: "Space Mono", monospace;
+  --font-intertight: "Inter Tight", "Inter", sans-serif;
+  --font-bigshoulders: "Big Shoulders Display", "Space Mono", monospace, sans-serif;
+  --font-ptsans: "Roboto", sans-serif;
+  --font-petaluma: "Skinny Things", sans-serif;
+}
+
+.font-ptsans {
+  font-family: "Roboto", sans-serif !important;
+}
+
+.font-petaluma {
+  font-family: "Skinny Things", sans-serif !important;
+}
+
+.ireal-chords-font {
+  font-family: "Open Sans Condensed", sans-serif !important;
+  font-stretch: condensed;
+}
+
+@utility font-ptsans {
+  font-family: "Roboto", sans-serif !important;
+}
+
+@utility font-petaluma {
+  font-family: "Skinny Things", sans-serif !important;
+}
+
+html, body {
+  max-width: 100vw;
+  width: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #ffffff; /* Default pure white background */
+  color: #0f172a; /* Slate Ink */
+}
+
+/* Perfect print stylesheet for clean, high-fidelity PDF chart generation */
+@media print {
+  body {
+    background-color: white !important;
+    background-image: none !important;
+    color: black !important;
+  }
+  
+  /* Hide all interactive, web-only chrome controls, modals, keyboard, scrollbars */
+  .print\:hidden,
+  button,
+  #sheet_header_box,
+  #tactile_editor_bottom_sheet,
+  nav,
+  aside,
+  header {
+    display: none !important;
+  }
+
+  /* Make sure the main score container stretches nicely to make a full-page fakebook sheet */
+  #music_score_drawing_board {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  #music_score_drawing_board > div {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  /* Ensure printed chords keep rich dark contrast */
+  span, div {
+    color: black !important;
+  }
+}
+
+/* The container holding one single line of music */
+.ireal-row {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr); /* Forces exactly 16 equal columns */
+  width: 100%;
+  max-width: 800px;
+}
+
+/* Individual cell styling */
+.ireal-cell {
+  position: relative;
+  text-align: center;
+  font-family: sans-serif;
+  overflow: visible; 
+  white-space: nowrap; /* Prevents long chords from wrapping to a new line */
+}
+
+/* Prevent native selection handles and touch callouts across the interactive score workspace */
+.select-none, button, [id^="m_cell_"], [id^="stave_"], [id^="col_"] {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Allow normal text selection in inputs and textareas */
+input, textarea {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Dynamic Accent Color CSS Variables and Class overrides */
+:root {
+  --accent-deep: #0c4a6e;
+  --accent-hover: #072f47;
+  --accent-light: #38bdf8;
+  --accent-light-hover: #0ea5e9;
+  --accent-light-bg: rgba(12, 74, 110, 0.05);
+  --accent-light-bg-strong: rgba(12, 74, 110, 0.15);
+}
+
+.text-\[\#0c4a6e\] {
+  color: var(--accent-deep) !important;
+}
+
+.bg-\[\#0c4a6e\] {
+  background-color: var(--accent-deep) !important;
+}
+
+.hover\:bg-\[\#072f47\]:hover {
+  background-color: var(--accent-hover) !important;
+}
+
+.hover\:bg-\[\#0c4a6e\]:hover {
+  background-color: var(--accent-deep) !important;
+}
+
+.border-\[\#0c4a6e\] {
+  border-color: var(--accent-deep) !important;
+}
+
+.focus\:border-\[\#0c4a6e\]:focus {
+  border-color: var(--accent-deep) !important;
+}
+
+.text-sky-400 {
+  color: var(--accent-light) !important;
+}
+
+.text-sky-450 {
+  color: var(--accent-light) !important;
+}
+
+.bg-sky-502, .bg-sky-505, .bg-sky-500 {
+  background-color: var(--accent-light) !important;
+}
+
+.hover\:bg-sky-400:hover {
+  background-color: var(--accent-light-hover) !important;
+}
+
+.border-sky-500 {
+  border-color: var(--accent-light) !important;
+}
+
+.focus\:border-sky-500:focus {
+  border-color: var(--accent-light) !important;
+}
+
+.hover\:text-sky-300:hover {
+  color: var(--accent-light-hover) !important;
+}
+
+.hover\:text-\[\#0c4a6e\]:hover {
+  color: var(--accent-deep) !important;
+}
+
+.bg-sky-50 {
+  background-color: var(--accent-light-bg) !important;
+}
+
+.bg-sky-100 {
+  background-color: var(--accent-light-bg-strong) !important;
+}
+
+.bg-\[\#0c4a6e\]\/15 {
+  background-color: var(--accent-light-bg-strong) !important;
+}
+
+.bg-\[\#0c4a6e\]\/10 {
+  background-color: var(--accent-light-bg) !important;
+}
+
+.bg-sky-400\/10, .bg-sky-500\/10, .bg-sky-500\/15 {
+  background-color: var(--accent-light-bg) !important;
+}
+
+.hover\:bg-sky-400\/20:hover, .hover\:bg-sky-500\/20:hover {
+  background-color: var(--accent-light-bg-strong) !important;
+}
+
+.hover\:bg-\[\#0c4a6e\]\/20:hover {
+  background-color: var(--accent-light-bg-strong) !important;
+}
+
+.shadow-\[\#0c4a6e\]\/10 {
+  box-shadow: 0 4px 6px -1px var(--accent-light-bg), 0 2px 4px -1px var(--accent-light-bg) !important;
+}
+
+.shadow-sky-500\/10 {
+  box-shadow: 0 4px 6px -1px var(--accent-light-bg), 0 2px 4px -1px var(--accent-light-bg) !important;
+}
+
+.from-\[\#0c4a6e\] {
+  --tw-gradient-from: var(--accent-deep) !important;
+  --tw-gradient-to: var(--accent-hover) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+.to-sky-800 {
+  --tw-gradient-to: var(--accent-hover) !important;
+}
+
+
+

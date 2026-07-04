@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Solid neutral dark background matching 'Slate Ink' -->
+  <rect width="512" height="512" fill="#0f172a" />
+  
+  <!-- Sleek, minimalist vector graphic of two eighth notes linked by a beam -->
+  <g transform="translate(10, 15)">
+    <!-- Connected solid beam -->
+    <path d="M 200 160 L 350 110 L 350 145 L 200 195 Z" fill="#f8fafc" />
+    
+    <!-- Left stem -->
+    <rect x="184" y="180" width="16" height="170" fill="#f8fafc" />
+    
+    <!-- Right stem -->
+    <rect x="334" y="130" width="16" height="170" fill="#f8fafc" />
+    
+    <!-- Left notehead, rotated ellipse -->
+    <g transform="translate(184, 350) rotate(-25)">
+      <ellipse cx="-16" cy="10" rx="36" ry="26" fill="#f8fafc" />
+    </g>
+    
+    <!-- Right notehead, rotated ellipse -->
+    <g transform="translate(334, 300) rotate(-25)">
+      <ellipse cx="-16" cy="10" rx="36" ry="26" fill="#f8fafc" />
+    </g>
+  </g>
+</svg>
