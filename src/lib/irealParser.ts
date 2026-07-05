@@ -34,8 +34,9 @@ export function buildIRealGridMatrix(measures: Measure[], timeSignature: string,
   
   const beatsPerMeasure = timeSignature === '3/4' ? 3 : 4;
   
-  // Standard iReal mapping: distribute `beatsPerMeasure` across 4 geometric cells per measure
-  const cellsPerMeasure = 4; 
+  // Standard iReal mapping or custom 3/4 layout: distribute `beatsPerMeasure` across slots
+  const cellsPerMeasure = beatsPerMeasure; 
+  const cellsPerRow = 4 * cellsPerMeasure; // e.g., 12 or 16 cells per system row
 
   measures.forEach((measure, measureIdx) => {
     // Generate the cells for this measure
@@ -47,19 +48,11 @@ export function buildIRealGridMatrix(measures: Measure[], timeSignature: string,
       spacer: 0
     }));
 
-    // Calculate how to distribute chords into the 4 cells based on time signature
-    // E.g., 4/4 time: 1 beat per cell
-    // 3/4 time: beats 1, 2, 3 into cells 0, 1, 2 (cell 3 is empty)
-    
     measure.slots.forEach((slot, sIdx) => {
       if (sIdx >= beatsPerMeasure) return;
       if (!slot.isEmpty) {
         // Find which cell to place this in
         let cellIdx = sIdx; 
-        if (beatsPerMeasure === 3 && sIdx === 2) {
-          // Spread 3rd beat into 3rd cell (or 4th based on preference, standard is 3rd cell)
-          cellIdx = 2; 
-        }
 
         const transposedRootIndex = (slot.root + semitoneShift + 120) % 12;
         const rootName = getNoteName(transposedRootIndex, keySig, slot.accidental || undefined);
@@ -103,8 +96,8 @@ export function buildIRealGridMatrix(measures: Measure[], timeSignature: string,
 
     currentRow.push(...measureCells);
 
-    // If we hit 16 cells, wrap the system
-    if (currentRow.length >= 16) {
+    // If we hit standard row width, wrap the system
+    if (currentRow.length >= cellsPerRow) {
       // Append closing barline to the last cell
       if (currentRow.length > 0) {
         currentRow[currentRow.length - 1].bars += '|';
@@ -115,8 +108,8 @@ export function buildIRealGridMatrix(measures: Measure[], timeSignature: string,
   });
 
   if (currentRow.length > 0) {
-    // Pad remaining with empty cells to make exactly 16
-    while (currentRow.length < 16) {
+    // Pad remaining with empty cells to make exactly cellsPerRow
+    while (currentRow.length < cellsPerRow) {
       currentRow.push({ chord: null, annots: [], comments: [], bars: '', spacer: 0 });
     }
     currentRow[currentRow.length - 1].bars += '|';
@@ -155,7 +148,7 @@ export function generateIRealUri(song: Song): string {
       }
 
       // Add closing or intermediate barlines
-      if (rowIdx === matrix.length - 1 && colIdx === 15) {
+      if (rowIdx === matrix.length - 1 && colIdx === row.length - 1) {
         musicString += ']';
       } else if (cell.bars.includes('|')) {
         musicString += '|';
@@ -198,7 +191,7 @@ export function generateIRealPlaylistUri(playlistName: string, songs: Song[]): s
           musicString += ' ';
         }
         
-        if (rowIdx === matrix.length - 1 && colIdx === 15) {
+        if (rowIdx === matrix.length - 1 && colIdx === row.length - 1) {
           musicString += ']';
         } else if (cell.bars.includes('|')) {
           musicString += '|';

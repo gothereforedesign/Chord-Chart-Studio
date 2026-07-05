@@ -196,12 +196,12 @@ export function formatChordModifier(str: string): string {
   if (!str) return '';
   return formatMusicSymbols(str)
     .replace(/maj/g, 'Δ')
-    .replace(/min/g, '-')
+    .replace(/min/g, '–')
     .replace(/dim/g, '°')
     .replace(/aug/g, '+')
     // Safe single letter replacements: only if they are the first char, or preceded by something safe,
     // but honestly just checking first char is usually enough for suffixes like 'm7', 'o7', 'h7'
-    .replace(/^m/g, '-')
+    .replace(/^m/g, '–')
     .replace(/^o/g, '°')
     .replace(/^h/g, 'ø');
 }
@@ -325,34 +325,34 @@ export function getJazzSuffixSymbol(suffix: string, notationStyle: 'standard' | 
   switch (suffix) {
     // Basic / Triads
     case 'maj7': return 'Δ7';
-    case 'min7': return '-7';
+    case 'min7': return '–7';
     case 'm7b5': return 'ø7';
     case 'dim7': return 'o7';
     case '7': return '7';
-    case 'min': return '-';
+    case 'min': return '–';
     case 'dim': return 'o';
     case 'aug': return '+';
     case '6': return '6';
     case '6/9': return '6/9';
 
     // Minor Family
-    case 'min9': return '-9';
-    case 'min6': return '-6';
-    case 'min6/9': return '-6/9';
-    case 'min7b6': return '-7b6';
-    case 'min9b6': return '-9b6';
-    case 'min11': return '-11';
-    case 'min13': return '-13';
-    case 'minb6': return '-b6';
-    case 'min#5': return '-#5';
+    case 'min9': return '–9';
+    case 'min6': return '–6';
+    case 'min6/9': return '–6/9';
+    case 'min7b6': return '–7b6';
+    case 'min9b6': return '–9b6';
+    case 'min11': return '–11';
+    case 'min13': return '–13';
+    case 'minb6': return '–b6';
+    case 'min#5': return '–#5';
     case 'm9b5': return 'ø9';
-    case 'minmaj7': return '-Δ7';
-    case 'minmaj9': return '-Δ9';
-    case 'minmaj11': return '-Δ11';
-    case 'minmaj13': return '-Δ13';
+    case 'minmaj7': return '–Δ7';
+    case 'minmaj9': return '–Δ9';
+    case 'minmaj11': return '–Δ11';
+    case 'minmaj13': return '–Δ13';
     case 'dimmaj7': return 'oΔ7';
-    case 'minadd2': return '-add2';
-    case 'minadd4': return '-add4';
+    case 'minadd2': return '–add2';
+    case 'minadd4': return '–add4';
 
     // Major Family
     case 'maj7#11': return 'Δ7#11';
@@ -411,7 +411,7 @@ export function parseSingleChordString(raw: string): ChordSlot {
   if (typeof raw !== 'string') {
     return { root: 0, accidental: 'natural', suffix: '', isEmpty: true };
   }
-  let t = raw.trim();
+  let t = raw.trim().replace(/–/g, '-');
 
   // Strip out any parenthesized optional alternative chords (e.g. "(Am7)", "(G7)", "(Bb)")
   t = t.replace(/\(\s*[A-G][^)]*\)/g, '').trim();

@@ -23,49 +23,56 @@ export const ChordChartGrid: React.FC<ChordChartGridProps> = ({
   isDark = false
 }) => {
   return (
-    <div className="w-full flex flex-col gap-[4px] px-2 print:gap-[4px] print:px-0 mt-4 pb-48">
-      {systems.map((rowCells, rowIdx) => (
-        <div key={`sys_${rowIdx}`} className="relative w-full flex justify-center">
-          {/* IREAL PRO STRICT 16-COLUMN GRID */}
-          <div className="ireal-row h-[62px] sm:h-[74px] md:h-[88px] relative mx-auto gap-[4px]">
-            {(() => {
-              const elements = [];
-              let skipNext = false;
-              
-              for (let colIdx = 0; colIdx < rowCells.length; colIdx++) {
-                if (skipNext) {
-                  skipNext = false;
-                  continue;
-                }
+    <div className="w-full flex flex-col gap-[4px] px-0 print:gap-[4px] print:px-0 mt-4 pb-2">
+      {systems.map((rowCells, rowIdx) => {
+        const hasChordsInRow = rowCells.some(cell => cell.chord);
+        return (
+          <div key={`sys_${rowIdx}`} className="relative w-full flex justify-center">
+            {/* IREAL PRO STRICT 16-COLUMN GRID */}
+            <div 
+              className="ireal-row h-[58px] sm:h-[70px] md:h-[84px] relative mx-auto gap-[4px]"
+              style={{ gridTemplateColumns: `repeat(${rowCells.length}, minmax(0, 1fr))` }}
+            >
+              {(() => {
+                const elements = [];
+                let skipNext = false;
                 
-                const cell = rowCells[colIdx];
-                const isSelected =
-                  cell.measureId === selectedMeasureId &&
-                  cell.slotIdx !== undefined &&
-                  String(cell.slotIdx) === String(selectedSlotIndex);
+                const cellsPerMeasure = rowCells.length / 4;
 
-                
-                // Determine span: if size is 100% (default for full size) and not the last column, span 2
-                const isFullSize = !!cell.chord;
-                // Prevent spanning across measure boundaries (colIdx % 4 === 3 is the last slot of a measure)
-                const canSpan = colIdx % 4 !== 3 && colIdx < 15;
-                const span = (isFullSize && canSpan) ? 2 : 1;
-                
-                if (span === 2) skipNext = true;
+                for (let colIdx = 0; colIdx < rowCells.length; colIdx++) {
+                  if (skipNext) {
+                    skipNext = false;
+                    continue;
+                  }
+                  
+                  const cell = rowCells[colIdx];
+                  const isSelected =
+                    cell.measureId === selectedMeasureId &&
+                    cell.slotIdx !== undefined &&
+                    String(cell.slotIdx) === String(selectedSlotIndex);
 
-                const isEndOfMeasure = (colIdx + span - 1) % 4 === 3;
+                  
+                  // Determine span: if size is 100% (default for full size) and not the last column, span 2
+                  const isFullSize = !!cell.chord;
+                  // Prevent spanning across measure boundaries
+                  const canSpan = colIdx % cellsPerMeasure !== cellsPerMeasure - 1 && colIdx < rowCells.length - 1;
+                  const span = (isFullSize && canSpan) ? 2 : 1;
+                  
+                  if (span === 2) skipNext = true;
 
-                // Fixed viewBox width so all chords scale to the exact same height identically
-                const viewBoxWidth = 100;
-                
-                elements.push(
-                  <div
-                    key={`cell_${rowIdx}_${colIdx}`}
-                    style={{ gridColumn: `span ${span} / span ${span}` }}
-                    className={`ireal-cell flex items-center justify-start pl-1 relative
-                      ${isEndOfMeasure ? 'border-r border-slate-800 dark:border-slate-400' : ''}
-                      ${isSelected ? (isDark ? 'bg-sky-950/60 ring-2 ring-inset ring-sky-500 z-10 rounded' : 'bg-sky-100 ring-2 ring-inset ring-sky-400 z-10 rounded') : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded'}
-                      cursor-pointer select-none transition-colors h-full`}
+                  const isEndOfMeasure = (colIdx + span - 1) % cellsPerMeasure === cellsPerMeasure - 1;
+
+                  // Fixed viewBox width so all chords scale to the exact same height identically
+                  const viewBoxWidth = 100;
+                  
+                  elements.push(
+                    <div
+                      key={`cell_${rowIdx}_${colIdx}`}
+                      style={{ gridColumn: `span ${span} / span ${span}` }}
+                      className={`ireal-cell flex items-center justify-start pl-[2px] relative
+                        ${isEndOfMeasure && hasChordsInRow ? 'border-r border-slate-800 dark:border-slate-400' : ''}
+                        ${isSelected ? (isDark ? 'bg-sky-950/60 ring-2 ring-inset ring-sky-500 z-10 rounded' : 'bg-sky-100 ring-2 ring-inset ring-sky-400 z-10 rounded') : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded'}
+                        cursor-pointer select-none transition-colors h-full`}
                     onMouseDown={(e) => {
                       if (e.button !== 0) return;
                       if (cell.measureId && cell.slotIdx !== undefined) {
@@ -103,23 +110,24 @@ export const ChordChartGrid: React.FC<ChordChartGridProps> = ({
                       
                       const modText = cell.chord.modifiers || '';
                       const formattedMod = formatChordModifier(modText);
-                      const isMin = modText.startsWith('min') || modText.startsWith('m') || formattedMod.startsWith('-') || formattedMod.startsWith('m');
+                      const isMin = modText.startsWith('min') || modText.startsWith('m') || formattedMod.startsWith('-') || formattedMod.startsWith('–') || formattedMod.startsWith('m');
                       const isBm = mainRoot === 'B' && isMin;
 
                       const size = cell.sizePercent;
                       const finalScaleX = size === 50 ? 0.95 : 1.0;
+                      const textScaleY = size === 50 ? 1.35 : 1.0;
                       
                       return (
                       <svg 
                         viewBox={`0 0 ${viewBoxWidth} 44`} 
                         preserveAspectRatio="xMinYMid meet"
                         style={{
-                          height: '100%',
+                          height: '80%',
                           width: 'auto',
                           aspectRatio: `${viewBoxWidth} / 44`,
                           overflow: 'visible',
                           transform: `scale(${finalScaleX}, 1.0)`,
-                          transformOrigin: 'left bottom'
+                          transformOrigin: '0px 34px'
                         }}
                         className={`max-w-none ${isDark ? 'text-slate-100' : 'text-slate-900'}`}
                       >
@@ -131,18 +139,27 @@ export const ChordChartGrid: React.FC<ChordChartGridProps> = ({
                           className="ireal-chords-font" 
                           style={{
                             letterSpacing: '-0.04em',
-                            fontWeight: 550,
-                            transform: 'scale(1.0, 1.35)',
+                            fontWeight: 450,
+                            transform: `scale(1.0, ${textScaleY})`,
                             transformOrigin: '0px 34px'
                           }}
                         >
-                          <tspan fontSize="36">{mainRoot}</tspan>
-                          {mainAcc && <tspan y="20" dx={isBm ? "1" : undefined} fontSize="22">{mainAcc}</tspan>}
+                          <tspan fontSize="38">{mainRoot}</tspan>
+                          {mainAcc && (
+                            <tspan 
+                              y="20" 
+                              dx={isBm ? "1" : undefined} 
+                              fontSize="22"
+                              style={{ fontWeight: mainAcc === '♭' ? 600 : undefined }}
+                            >
+                              {mainAcc}
+                            </tspan>
+                          )}
                           
                           {/* Extensions */}
                           {cell.chord.modifiers && (() => {
                             const mod = formatChordModifier(cell.chord.modifiers);
-                            const cellIsMin = cell.chord.modifiers.startsWith('min') || cell.chord.modifiers.startsWith('m') || mod.startsWith('-') || mod.startsWith('m');
+                            const cellIsMin = cell.chord.modifiers.startsWith('min') || cell.chord.modifiers.startsWith('m') || mod.startsWith('-') || mod.startsWith('–') || mod.startsWith('m');
                             let dxValue = 2;
                             if (cellIsMin && mainAcc) {
                               dxValue = -6;
@@ -192,7 +209,8 @@ export const ChordChartGrid: React.FC<ChordChartGridProps> = ({
             })()}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

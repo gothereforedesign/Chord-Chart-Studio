@@ -213,6 +213,43 @@ export function LeadSheet({
   const isOptionsOpen = propIsOptionsOpen !== undefined ? propIsOptionsOpen : localIsOptionsOpen;
   const setIsOptionsOpen = onSetIsOptionsOpen !== undefined ? onSetIsOptionsOpen : setLocalIsOptionsOpen;
 
+  const [canScrollY, setCanScrollY] = useState(true);
+
+  React.useLayoutEffect(() => {
+    const board = document.getElementById('music_score_drawing_board');
+    if (!board) return;
+
+    const checkScroll = () => {
+      // If keyboard is open, always allow scroll
+      if (selectedMeasureId !== null && selectedSlotIndex !== null) {
+        setCanScrollY(true);
+        return;
+      }
+      // Check if content overflows the height of the board
+      const hasOverflow = board.scrollHeight > board.clientHeight;
+      setCanScrollY(hasOverflow);
+    };
+
+    // Check immediately
+    checkScroll();
+
+    // Use ResizeObserver to check on layout/resize changes
+    const observer = new ResizeObserver(() => {
+      checkScroll();
+    });
+    observer.observe(board);
+    
+    // Also observe systems_stack_box
+    const stackBox = document.getElementById('systems_stack_box');
+    if (stackBox) {
+      observer.observe(stackBox);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [selectedMeasureId, selectedSlotIndex, currentSong.grid]);
+
   useEffect(() => {
     setTempTitle(currentSong.title);
     setTempSubheading(currentSong.subheading || '');
@@ -1149,8 +1186,21 @@ export function LeadSheet({
 
     const parsed = parseChordSuffixForDisplay(suffixSymbol);
 
+    const getRootScaleX = (letter: string) => {
+      switch (letter) {
+        case 'A': return 0.65;
+        case 'B': return 0.68;
+        case 'C': return 0.66;
+        case 'D': return 0.66;
+        case 'E': return 0.74;
+        case 'F': return 0.79;
+        case 'G': return 0.64;
+        default: return 0.65;
+      }
+    };
+
     // Dynamic typography scaling based on uniform sizing at all times
-    let rootTextSize = 'text-[55.8px] sm:text-[66.6px] md:text-[79.2px]';
+    let rootTextSize = 'text-[57.8px] sm:text-[68.6px] md:text-[81.2px]';
     let flatAccidentalSize = 'text-[11px] sm:text-[13px] md:text-[15px]';
     let sharpAccidentalSize = 'text-[10px] sm:text-[12px] md:text-[14px]';
     let qualityTextSize = 'text-[20px] sm:text-[24px] md:text-[29px]';
@@ -1184,7 +1234,7 @@ export function LeadSheet({
 
     const size = slot.sizePercent ?? (slot.isSmall ? 50 : 100);
     const finalScaleX = size === 50 ? 0.95 : 1.0;
-    const finalScaleY = 1.0;
+    const finalScaleY = size === 50 ? 1.35 : 1.0;
 
     const activeFontClass = chordFont === 'petaluma' ? 'font-petaluma' : 'font-ptsans';
 
@@ -1254,7 +1304,7 @@ export function LeadSheet({
         } else if (normSuffix.startsWith('maj')) {
           normSuffix = 'Δ' + normSuffix.slice(3);
         } else if (normSuffix.startsWith('min')) {
-          normSuffix = '-' + normSuffix.slice(3);
+          normSuffix = '–' + normSuffix.slice(3);
         } else if (normSuffix.startsWith('dim')) {
           normSuffix = 'o' + normSuffix.slice(3);
         }
@@ -1274,8 +1324,8 @@ export function LeadSheet({
       return null;
     };
 
-    const isMin7OrDom7 = slot.suffix === 'min7' || slot.suffix === '7' || suffixSymbol === '-7' || suffixSymbol === '7' || suffixSymbol === 'm7';
-    const isMin = slot.suffix?.startsWith('min') || slot.suffix?.startsWith('m') || suffixSymbol?.startsWith('-') || suffixSymbol?.startsWith('m');
+    const isMin7OrDom7 = slot.suffix === 'min7' || slot.suffix === '7' || suffixSymbol === '-7' || suffixSymbol === '–7' || suffixSymbol === '7' || suffixSymbol === 'm7';
+    const isMin = slot.suffix?.startsWith('min') || slot.suffix?.startsWith('m') || suffixSymbol?.startsWith('-') || suffixSymbol?.startsWith('–') || suffixSymbol?.startsWith('m');
     let numericGap = isMin7OrDom7 ? 10 : 8;
     if (isMin && accidentalMark) {
       numericGap = 2;
@@ -1299,7 +1349,7 @@ export function LeadSheet({
         id={`formatted_chord_${baseLetter}`}
         style={{
           height: '100%',
-          transform: `scale(${finalScaleX}, 1.35)`,
+          transform: `scale(${finalScaleX}, ${finalScaleY})`,
           transformOrigin: 'left bottom',
           transition: 'transform 0.15s ease-out',
         }}
@@ -1312,10 +1362,10 @@ export function LeadSheet({
               className={`${activeFontClass} ${rootTextSize} ${isDark ? 'text-slate-100' : 'text-black'} uppercase tracking-tight leading-none select-none pr-0 inline-block`}
               style={{
                 width: '0.4225em',
-                transform: 'scale(0.65, 1.0)',
+                transform: `scale(${getRootScaleX(baseLetter)}, 1.0)`,
                 transformOrigin: 'left bottom',
                 marginRight: '-0.1625em',
-                fontWeight: 450, // cut root note weight by 50 (500 -> 450)
+                fontWeight: 350, // cut root note weight by 150 (500 -> 350)
               }}
             >
               {baseLetter}
@@ -1326,7 +1376,7 @@ export function LeadSheet({
                   accidentalMark === '♭' ? flatAccidentalSize : sharpAccidentalSize
                 }`}
                 style={{
-                  fontWeight: accidentalMark === '♭' ? 300 : 400, // cut stroke by 50
+                  fontWeight: accidentalMark === '♭' ? 350 : 400, // cut stroke by 50
                   alignSelf: 'flex-start',
                 }}
               >
@@ -1346,13 +1396,13 @@ export function LeadSheet({
           <div className="absolute bottom-[4px] right-0 flex flex-row items-baseline select-none whitespace-nowrap pl-1 pb-[1px] md:pb-[2px]">
             <span 
               className={`${activeFontClass} text-[21px] sm:text-[25px] md:text-[30px] ${isDark ? 'text-slate-100' : 'text-black'} opacity-80 select-none leading-none mr-[0.5px]`}
-              style={{ fontWeight: 450 }}
+              style={{ fontWeight: 350 }}
             >
               /
             </span>
             <span 
               className={`${activeFontClass} text-[19px] sm:text-[23px] md:text-[27px] ${isDark ? 'text-slate-100' : 'text-black'} select-none uppercase leading-none`}
-              style={{ fontWeight: 450 }}
+              style={{ fontWeight: 350 }}
             >
               {slashRootNote}
             </span>
@@ -1521,11 +1571,11 @@ export function LeadSheet({
 
   // Barline render blocks matching printed fakebook barlines scaled shorter for compact rows
   const SingleBarline = ({ visible = true }: { visible?: boolean }) => (
-    <div className={`w-[1.2px] ${visible ? (isDark ? 'bg-slate-700' : 'bg-black') : 'bg-transparent'} h-[62px] sm:h-[74px] md:h-[88px] shrink-0`} />
+    <div className={`w-[1.2px] ${visible ? (isDark ? 'bg-slate-700' : 'bg-black') : 'bg-transparent'} h-[58px] sm:h-[70px] md:h-[84px] shrink-0`} />
   );
 
   const DoubleBarline = ({ visible = true }: { visible?: boolean }) => (
-    <div className="flex gap-[1.5px] items-center h-[62px] sm:h-[74px] md:h-[88px] shrink-0">
+    <div className="flex gap-[1.5px] items-center h-[58px] sm:h-[70px] md:h-[84px] shrink-0">
       <div className={`w-[1px] ${visible ? (isDark ? 'bg-slate-700' : 'bg-black') : 'bg-transparent'} h-full`} />
       <div className={`w-[2.2px] ${visible ? (isDark ? 'bg-slate-700' : 'bg-black') : 'bg-transparent'} h-full`} />
     </div>
@@ -1612,11 +1662,16 @@ export function LeadSheet({
       {/* ========================================================
           THE CLEAN SHEET BLOCK AREA (FULL WIDTH CANVAS)
           ======================================================== */}
-      <div className="relative flex-1 min-h-0 select-none flex flex-col overflow-y-auto print:overflow-visible print:my-0 print:px-0" id="music_score_drawing_board">
+      <div 
+        className={`relative flex-1 min-h-0 select-none flex flex-col ${
+          canScrollY ? 'overflow-y-auto' : 'overflow-y-hidden'
+        } print:overflow-visible print:my-0 print:px-0`} 
+        id="music_score_drawing_board"
+      >
         <div className={`${isDark ? 'bg-slate-900' : 'bg-white'} w-full flex-1 ${
           (selectedMeasureId && selectedSlotIndex !== null)
-            ? 'p-[2px] pb-[420px] sm:pb-[480px] lg:pb-[520px] print:p-0'
-            : 'p-[2px] pb-24 print:p-0'
+            ? 'px-0 py-[2px] pb-[420px] sm:pb-[480px] lg:pb-[520px] print:p-0'
+            : 'px-0 py-[2px] pb-6 print:p-0'
         } rounded-none shadow-none border-none`}>
           
           <div className="flex flex-col w-full space-y-4 sm:space-y-6 md:space-y-7 pt-[2px] print:pt-0" id="systems_stack_box">
