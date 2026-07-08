@@ -1037,7 +1037,7 @@ export function LibraryBrowser({
                                   const val = e.target.value === 'none' ? null : e.target.value;
                                   onMoveSong(song.id, val);
                                 }}
-                                className={`appearance-none text-[10px] uppercase tracking-wider font-extrabold py-1.5 px-3.5 rounded-full border border-transparent text-center focus:outline-hidden cursor-pointer transition ${
+                                className={`appearance-none text-[10px] uppercase tracking-wider font-extrabold py-1.5 px-2 rounded-full border border-transparent text-center focus:outline-hidden cursor-pointer transition ${
                                   isDark 
                                     ? 'bg-sky-400/10 hover:bg-sky-400/20 text-sky-400 focus:border-sky-500/30' 
                                     : 'bg-[#0c4a6e]/10 hover:bg-[#0c4a6e]/20 text-[#0c4a6e] focus:border-[#0c4a6e]/20'
@@ -1052,8 +1052,6 @@ export function LibraryBrowser({
                                 ))}
                               </select>
                             </div>
-
-                            <ChevronRight className="w-4 h-4 text-slate-400" />
                           </div>
                         </motion.div>
                       </motion.div>

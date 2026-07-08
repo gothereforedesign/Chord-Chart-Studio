@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Song, Measure, ChordSlot, getNoteName, getJazzSuffixSymbol, KEYS, NoteBlock, formatMusicSymbols, formatChordModifier, formatSectionLabelString, getKeySemitone } from '../types';
 import { ChordChartGrid } from './ChordChartGrid';
 import { buildIRealGridMatrix, generateIRealUri } from '../lib/irealParser';
@@ -225,9 +226,15 @@ export function LeadSheet({
         setCanScrollY(true);
         return;
       }
-      // Check if content overflows the height of the board
-      const hasOverflow = board.scrollHeight > board.clientHeight;
-      setCanScrollY(hasOverflow);
+      const stackBox = document.getElementById('systems_stack_box');
+      if (stackBox) {
+        // Only allow vertical scrolling if the actual chart content height exceeds the viewport
+        const hasOverflow = stackBox.offsetHeight > board.clientHeight;
+        setCanScrollY(hasOverflow);
+      } else {
+        const hasOverflow = board.scrollHeight > board.clientHeight + 4;
+        setCanScrollY(hasOverflow);
+      }
     };
 
     // Check immediately
@@ -1169,6 +1176,18 @@ export function LeadSheet({
 
   // Render a musical chord formatted using the active font and layout rules
   const renderFormattedChord = (slot: ChordSlot, measureSlotsOrNum: (ChordSlot | null)[] | number = 1, sIndex?: number) => {
+    if (slot.suffix === '%') {
+      return (
+        <div className="flex items-center justify-center h-full w-full select-none">
+          <svg className={`w-[26px] h-[26px] sm:w-[32px] sm:h-[32px] md:w-[38px] md:h-[38px] opacity-80 ${isDark ? 'text-slate-300' : 'text-slate-700'}`} viewBox="0 0 24 24" fill="none">
+            <line x1="5" y1="19" x2="19" y2="5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx="8.5" cy="8.5" r="2.2" stroke="currentColor" strokeWidth="2" fill="none" />
+            <circle cx="15.5" cy="15.5" r="2.2" stroke="currentColor" strokeWidth="2" fill="none" />
+          </svg>
+        </div>
+      );
+    }
+
     const transposedRootIndex = (slot.root + semitoneShift + 12) % 12;
     const rawName = getNoteName(transposedRootIndex, transposedKeySpelling, slot.accidental);
     const suffixSymbol = getJazzSuffixSymbol(slot.suffix, notationStyle);
@@ -1188,22 +1207,22 @@ export function LeadSheet({
 
     const getRootScaleX = (letter: string) => {
       switch (letter) {
-        case 'A': return 0.65;
-        case 'B': return 0.68;
-        case 'C': return 0.66;
-        case 'D': return 0.66;
-        case 'E': return 0.74;
-        case 'F': return 0.79;
-        case 'G': return 0.64;
-        default: return 0.65;
+        case 'A': return 0.82;
+        case 'B': return 0.85;
+        case 'C': return 0.84;
+        case 'D': return 0.84;
+        case 'E': return 0.90;
+        case 'F': return 0.92;
+        case 'G': return 0.82;
+        default: return 0.85;
       }
     };
 
     // Dynamic typography scaling based on uniform sizing at all times
-    let rootTextSize = 'text-[57.8px] sm:text-[68.6px] md:text-[81.2px]';
-    let flatAccidentalSize = 'text-[11px] sm:text-[13px] md:text-[15px]';
-    let sharpAccidentalSize = 'text-[10px] sm:text-[12px] md:text-[14px]';
-    let qualityTextSize = 'text-[20px] sm:text-[24px] md:text-[29px]';
+    let rootTextSize = 'text-[64.8px] sm:text-[75.6px] md:text-[88.2px]';
+    let flatAccidentalSize = 'text-[16px] sm:text-[18px] md:text-[20px]';
+    let sharpAccidentalSize = 'text-[15px] sm:text-[17px] md:text-[19px]';
+    let qualityTextSize = 'text-[25px] sm:text-[29px] md:text-[34px]';
 
     // Slash Bass root note spelling helper
     let slashRootNote = '';
@@ -1233,7 +1252,7 @@ export function LeadSheet({
     }
 
     const size = slot.sizePercent ?? (slot.isSmall ? 50 : 100);
-    const finalScaleX = size === 50 ? 0.95 : 1.0;
+    const finalScaleX = size === 50 ? 0.8 : 1.0;
     const finalScaleY = size === 50 ? 1.35 : 1.0;
 
     const activeFontClass = chordFont === 'petaluma' ? 'font-petaluma' : 'font-ptsans';
@@ -1264,8 +1283,8 @@ export function LeadSheet({
           <div className="flex flex-row items-baseline select-none">
             {/* The base '7' */}
             <span 
-              className={`${activeFontClass} ${isDark ? 'text-slate-100' : 'text-black'} leading-none pr-[1.5px] text-[13px] sm:text-[15px] md:text-[18px]`}
-              style={{ fontWeight: 350 }}
+              className={`${activeFontClass} ${isDark ? 'text-slate-100' : 'text-black'} leading-none pr-[1.5px] text-[18px] sm:text-[20px] md:text-[23px]`}
+              style={{ fontWeight: 600 }}
             >
               7
             </span>
@@ -1273,15 +1292,15 @@ export function LeadSheet({
             <div className="flex flex-col justify-end">
               {/* Top story */}
               <span 
-                className={`${activeFontClass} ${isDark ? 'text-slate-100' : 'text-black'} leading-none tracking-tight text-[11px] sm:text-[12px] md:text-[15px]`}
-                style={{ fontWeight: 350 }}
+                className={`${activeFontClass} ${isDark ? 'text-slate-100' : 'text-black'} leading-none tracking-tight text-[16px] sm:text-[17px] md:text-[20px]`}
+                style={{ fontWeight: 600 }}
               >
                 {topText}
               </span>
               {/* Bottom story */}
               <span 
-                className={`${activeFontClass} ${isDark ? 'text-slate-400' : 'text-slate-500'} leading-none tracking-tighter mt-[1px] sm:mt-[2px] text-[11px] sm:text-[12px] md:text-[15px]`}
-                style={{ fontWeight: 300 }}
+                className={`${activeFontClass} ${isDark ? 'text-slate-400' : 'text-slate-500'} leading-none tracking-tighter mt-[1px] sm:mt-[2px] text-[16px] sm:text-[17px] md:text-[20px]`}
+                style={{ fontWeight: 600 }}
               >
                 {bottomText}
               </span>
@@ -1312,8 +1331,8 @@ export function LeadSheet({
         return (
           <div className="flex flex-row items-baseline select-none" style={{ position: 'relative', bottom: '0px' }}>
             <span 
-              className={`${activeFontClass} ${isDark ? 'text-slate-100' : 'text-black'} leading-none tracking-tight text-[14px] sm:text-[16px] md:text-[19px]`}
-              style={{ fontWeight: 350 }}
+              className={`${activeFontClass} ${isDark ? 'text-slate-100' : 'text-black'} leading-none tracking-tight text-[19px] sm:text-[21px] md:text-[24px]`}
+              style={{ fontWeight: 600 }}
             >
               {formatChordModifier(normSuffix)}
             </span>
@@ -1338,10 +1357,9 @@ export function LeadSheet({
     if (accidentalMark === '♭') {
       numericGap = Math.max(0, numericGap - 2);
     }
-    const gapVal = `${numericGap}px`;
+    const gapVal = "-0.5px";
 
-    const isBm = baseLetter === 'B' && isMin;
-    const rootAccidentalGap = isBm ? '2px' : '1px';
+    const rootAccidentalGap = "-0.5px";
 
     return (
       <div 
@@ -1357,15 +1375,14 @@ export function LeadSheet({
         {/* Main Chord Body (Root + Suffixes) */}
         <div className="flex flex-row items-baseline shrink-0" style={{ gap: gapVal }}>
           {/* Left part: Root letter with superscript accidental */}
-          <div className="relative flex flex-row items-baseline shrink-0" style={{ gap: rootAccidentalGap, marginLeft: '1px' }}>
+          <div className="relative flex flex-row items-start shrink-0" style={{ gap: rootAccidentalGap, marginLeft: '1px' }}>
             <span 
               className={`${activeFontClass} ${rootTextSize} ${isDark ? 'text-slate-100' : 'text-black'} uppercase tracking-tight leading-none select-none pr-0 inline-block`}
               style={{
-                width: '0.4225em',
                 transform: `scale(${getRootScaleX(baseLetter)}, 1.0)`,
                 transformOrigin: 'left bottom',
-                marginRight: '-0.1625em',
-                fontWeight: 350, // cut root note weight by 150 (500 -> 350)
+                marginRight: '-0.5px',
+                fontWeight: 550,
               }}
             >
               {baseLetter}
@@ -1376,8 +1393,9 @@ export function LeadSheet({
                   accidentalMark === '♭' ? flatAccidentalSize : sharpAccidentalSize
                 }`}
                 style={{
-                  fontWeight: accidentalMark === '♭' ? 350 : 400, // cut stroke by 50
+                  fontWeight: 550,
                   alignSelf: 'flex-start',
+                  top: '0.55em',
                 }}
               >
                 {accidentalMark}
@@ -1395,14 +1413,14 @@ export function LeadSheet({
         {slashRootNote && (
           <div className="absolute bottom-[4px] right-0 flex flex-row items-baseline select-none whitespace-nowrap pl-1 pb-[1px] md:pb-[2px]">
             <span 
-              className={`${activeFontClass} text-[21px] sm:text-[25px] md:text-[30px] ${isDark ? 'text-slate-100' : 'text-black'} opacity-80 select-none leading-none mr-[0.5px]`}
-              style={{ fontWeight: 350 }}
+              className={`${activeFontClass} text-[26px] sm:text-[30px] md:text-[35px] ${isDark ? 'text-slate-100' : 'text-black'} opacity-80 select-none leading-none`}
+              style={{ fontWeight: 550, marginRight: '-0.5px' }}
             >
               /
             </span>
             <span 
-              className={`${activeFontClass} text-[19px] sm:text-[23px] md:text-[27px] ${isDark ? 'text-slate-100' : 'text-black'} select-none uppercase leading-none`}
-              style={{ fontWeight: 350 }}
+              className={`${activeFontClass} text-[26px] sm:text-[30px] md:text-[34px] ${isDark ? 'text-slate-100' : 'text-black'} select-none uppercase leading-none`}
+              style={{ fontWeight: 550 }}
             >
               {slashRootNote}
             </span>
@@ -1434,7 +1452,9 @@ export function LeadSheet({
       return currentIdx >= min && currentIdx <= max;
     };
 
-    if (isHollow) {
+    const isMeasureRepeat = measure.slots.slice(0, beatsPerMeasure).some(slot => slot && !slot.isEmpty && slot.suffix === '%');
+
+    if (isHollow || isMeasureRepeat) {
       const isSlotEditing = selectedMeasureId === measure.id && String(selectedSlotIndex) === '0';
       const isHighlighted = isSlotHighlighted(measure.id, 0);
       const hollowFlatIndex = getFlatIndex(measure.id, 0);
@@ -1479,17 +1499,21 @@ export function LeadSheet({
               ? 'bg-sky-100/90 text-[#0c4a6e] transition-colors'
               : (isDark ? 'hover:bg-slate-800/50' : 'hover:bg-neutral-50/70')
           }`}
-          title="Click to insert chord"
+          title={isMeasureRepeat ? "Repeat measure (°/°)" : "Click to insert chord"}
         >
-          {/* Authentic jazz Repeat "%" symbol perfectly centered */}
-          <span className={`text-xl sm:text-2xl font-mono ${isDark ? 'text-slate-100' : 'text-black'} font-semibold select-none`}>
-            %
-          </span>
+          {isMeasureRepeat && (
+            /* Authentic jazz Repeat "°/°" symbol perfectly centered */
+            <div className="flex items-center justify-center h-full w-full">
+              <svg className={`w-[26px] h-[26px] sm:w-[32px] sm:h-[32px] md:w-[38px] md:h-[38px] opacity-80 ${isDark ? 'text-slate-300' : 'text-slate-700'}`} viewBox="0 0 24 24" fill="none">
+                <line x1="5" y1="19" x2="19" y2="5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                <circle cx="8.5" cy="8.5" r="2.2" stroke="currentColor" strokeWidth="2" fill="none" />
+                <circle cx="15.5" cy="15.5" r="2.2" stroke="currentColor" strokeWidth="2" fill="none" />
+              </svg>
+            </div>
+          )}
 
           {/* Touch Draggable Selection Handles */}
           {renderSelectionHandles(measure.id, 0)}
-
-
         </button>
       );
     }
@@ -1584,81 +1608,6 @@ export function LeadSheet({
   return (
     <div className={`relative w-full h-screen overflow-hidden flex flex-col print:h-auto print:overflow-visible ${isDark ? 'bg-slate-900 text-slate-100' : 'bg-white text-black'} select-none font-sans`} id="chord_chart_core_view">
 
-      {/* 1. Title Bar - Brought to the top, layout-stable */}
-      <div className={`relative w-full flex-none ${isDark ? 'bg-slate-900 border-slate-800/80' : 'bg-white border-slate-200/80'} border-b py-3 px-6 sm:px-12 md:px-16 select-none print:hidden z-30 shadow-[0_4px_30px_rgba(0,0,0,0.04)] backdrop-blur-md transition-all`} id="sheet_header_box">
-        <div className="w-full flex items-center justify-between gap-4">
-          <button
-            onClick={onBackToLibrary}
-            className={`flex items-center justify-center w-10 h-10 ${isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-750' : 'bg-slate-50 border-slate-200/40 text-slate-600 hover:bg-slate-100'} border rounded-full transition-all active:scale-95 cursor-pointer shadow-xs`}
-            id="back_to_library_print_btn"
-            title="Back to Library"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-
-          {/* Center text displaying the tune (song) name align centered with back arrow and forced to one line */}
-          <div className="flex-1 flex justify-center items-center">
-            <button
-              onClick={() => setIsEditingTitle(true)}
-              className={`group relative flex flex-col items-center justify-center py-1.5 px-4.5 ${isDark ? 'hover:bg-slate-850 hover:border-slate-800' : 'hover:bg-slate-100/85 hover:border-slate-200'} rounded-xl border border-transparent transition-all cursor-pointer max-w-full`}
-              title="Click to edit/format song title"
-              id="header_tune_title_trigger"
-            >
-              <div className="flex flex-col items-center justify-center leading-tight">
-                <span
-                  className={`font-sans font-extrabold text-center ${isDark ? 'text-slate-100' : 'text-slate-900'} tracking-tight truncate block max-w-[150px] xs:max-w-[220px] sm:max-w-[320px] md:max-w-[450px] lg:max-w-[600px] text-base sm:text-lg md:text-xl`}
-                >
-                  {formatMusicSymbols(currentSong.title.replace(/\n+/g, ' ').trim() || 'Untitled Tune')}
-                </span>
-                {currentSong.subheading && (
-                  <span className={`text-[11.5px] sm:text-xs mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'} tracking-wide text-center leading-tight`}>
-                    {formatMusicSymbols(currentSong.subheading)}
-                  </span>
-                )}
-              </div>
-              <span className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition duration-150 text-[9px] bg-slate-900 text-white rounded px-1.5 py-0.5 whitespace-nowrap z-10 pointer-events-none shadow-md">
-                Click to Edit Title
-              </span>
-            </button>
-          </div>
-
-          {/* Top-Right Direct JSON Download Button */}
-          <div className="flex items-center gap-2 px-1 relative z-30" id="header_workspace_controls">
-            {selectedMeasureId !== null ? (
-              <button
-                type="button"
-                onClick={() => onDeselect?.()}
-                className={`flex items-center justify-center w-10 h-10 rounded-full transition-all cursor-pointer active:scale-95 ${
-                  isDark 
-                    ? 'text-rose-400 hover:text-rose-300 hover:bg-slate-800/80' 
-                    : 'text-rose-650 hover:text-rose-800 hover:bg-rose-50'
-                }`}
-                title="Exit Keyboard Editor"
-                id="header_exit_keyboard_btn"
-              >
-                <X className="w-5.5 h-5.5" />
-              </button>
-            ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsOptionsOpen(!isOptionsOpen)}
-                  className={`flex items-center justify-center w-10 h-10 rounded-full transition-all cursor-pointer active:scale-95 ${
-                    isOptionsOpen 
-                      ? 'bg-sky-600 text-white shadow-xs' 
-                      : isDark 
-                        ? 'text-slate-400 hover:text-white hover:bg-slate-800/80' 
-                        : 'text-slate-650 hover:text-slate-950 hover:bg-slate-100'
-                  }`}
-                  title="Display Config Settings"
-                  id="header_settings_btn"
-                >
-                  <SlidersHorizontal className="w-5 h-5" />
-                </button>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* ========================================================
           THE CLEAN SHEET BLOCK AREA (FULL WIDTH CANVAS)
           ======================================================== */}
@@ -1674,7 +1623,35 @@ export function LeadSheet({
             : 'px-0 py-[2px] pb-6 print:p-0'
         } rounded-none shadow-none border-none`}>
           
-          <div className="flex flex-col w-full space-y-4 sm:space-y-6 md:space-y-7 pt-[2px] print:pt-0" id="systems_stack_box">
+          <div className="flex flex-col w-full pt-[2px] print:pt-0" id="systems_stack_box">
+
+            {/* 1. Title Bar - Frameless, transparent, borderless, shadowless, part of the scrolling content */}
+            <div className="relative w-full flex-none pt-4 pb-0 px-8 select-none print:hidden z-30 transition-all" id="sheet_header_box">
+              <div className="w-full flex justify-center items-center">
+                <button
+                  onClick={() => setIsEditingTitle(true)}
+                  className={`group relative flex flex-col items-center justify-center py-1.5 px-4.5 ${isDark ? 'hover:bg-slate-850 hover:border-slate-800' : 'hover:bg-slate-100/85 hover:border-slate-200'} rounded-xl border border-transparent transition-all cursor-pointer max-w-full`}
+                  title="Click to edit/format song title"
+                  id="header_tune_title_trigger"
+                >
+                  <div className="flex flex-col items-center justify-center leading-tight">
+                    <span
+                      className={`font-sans font-extrabold text-center ${isDark ? 'text-slate-100' : 'text-slate-900'} tracking-tight truncate block max-w-[280px] xs:max-w-[380px] sm:max-w-[500px] md:max-w-[650px] lg:max-w-[850px] text-[22px]`}
+                    >
+                      {formatMusicSymbols(currentSong.title.replace(/\n+/g, ' ').trim() || 'Untitled Tune')}
+                    </span>
+                    {currentSong.subheading && (
+                      <span className={`text-[11.5px] sm:text-xs mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'} tracking-wide text-center leading-tight`}>
+                        {formatMusicSymbols(currentSong.subheading)}
+                      </span>
+                    )}
+                  </div>
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition duration-150 text-[9px] bg-slate-900 text-white rounded px-1.5 py-0.5 whitespace-nowrap z-10 pointer-events-none shadow-md">
+                    Click to Edit Title
+                  </span>
+                </button>
+              </div>
+            </div>
 
             {/* Printable Header - Visible ONLY when printing */}
             <div className="hidden print:flex flex-col items-center justify-center text-center pb-4 border-b-2 border-black w-full mb-6">
@@ -1717,162 +1694,168 @@ export function LeadSheet({
       </div>
 
       {/* 2. Chart Options Modal Overlay with Transposition, Meter/Time signature, and JSON download */}
-      {isOptionsOpen && (
-        <div 
-          className="fixed inset-0 bg-[#0f172a]/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 select-none" 
-          id="settings_modal_overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setIsOptionsOpen(false);
-            }
-          }}
-        >
-          <div
-            className={`w-full max-w-sm rounded-2xl shadow-2xl border overflow-hidden flex flex-col animate-none transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-white border-slate-100 text-slate-800'}`}
-            id="settings_modal"
+      <AnimatePresence>
+        {isOptionsOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
+            className="fixed inset-0 bg-[#0f172a]/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 select-none" 
+            id="settings_modal_overlay"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsOptionsOpen(false);
+              }
+            }}
           >
-            {/* Modal Header */}
-            <div className={`flex items-center justify-between px-5 py-4 border-b transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-4.5 h-4.5 text-[#0c4a6e]" />
-                <h3 className={`font-sans font-bold text-sm uppercase tracking-wider ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
-                  Chart Options
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsOptionsOpen(false)}
-                className={`p-1 rounded-lg transition-colors ${isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-850'}`}
-              >
-                <X className="w-5 h-5 pointer-events-none" />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-5 flex flex-col gap-6 text-sm">
-              {/* Option 1: Transposition */}
-              <div className="flex flex-col gap-2">
-                <label className="font-bold uppercase tracking-wider text-[10.5px] text-slate-400">Transpose Key</label>
-                <div className="relative">
-                  <select
-                    value={currentSong.key ? (currentSong.key.includes(' ') ? currentSong.key : `${currentSong.key} Maj`) : 'C Maj'}
-                    onChange={(e) => {
-                      const targetKey = e.target.value;
-                      onTransposeSong(currentSong.id, targetKey, true);
-                      setToastMessage(`Chords adjusted to target key: ${targetKey}`);
-                    }}
-                    className={`w-full p-2.5 rounded-xl border font-sans font-bold text-xs appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#0c4a6e] ${
-                      isDark 
-                        ? 'bg-slate-900 border-slate-800 text-slate-100' 
-                        : 'bg-slate-50 border-slate-200 text-slate-850'
-                    }`}
-                  >
-                    <optgroup label="Major Keys" className={isDark ? 'bg-slate-950 text-slate-100' : 'bg-white text-slate-800'}>
-                      {['C Maj', 'Db Maj', 'D Maj', 'Eb Maj', 'E Maj', 'F Maj', 'F# Maj', 'G Maj', 'Ab Maj', 'A Maj', 'Bb Maj', 'B Maj'].map((k) => (
-                        <option key={k} value={k}>
-                          {formatMusicSymbols(k)}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Minor Keys" className={isDark ? 'bg-slate-950 text-slate-100' : 'bg-white text-slate-800'}>
-                      {['A Min', 'Bb Min', 'B Min', 'C Min', 'C# Min', 'D Min', 'Eb Min', 'E Min', 'F Min', 'F# Min', 'G Min', 'G# Min'].map((k) => (
-                        <option key={k} value={k}>
-                          {formatMusicSymbols(k)}
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
-                  <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
-                    <Music className="w-4 h-4" />
-                  </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.1, x: "35vw", y: "35vh" }}
+              animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+              exit={{ opacity: 0, scale: 0.1, x: "35vw", y: "35vh" }}
+              transition={{ type: "tween", ease: "easeOut", duration: 0.12 }}
+              className={`w-full max-w-sm rounded-2xl shadow-2xl border overflow-hidden flex flex-col animate-none transition-colors ${isDark ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-white border-slate-100 text-slate-800'}`}
+              id="settings_modal"
+            >
+              {/* Modal Header */}
+              <div className={`flex items-center justify-between px-5 py-4 border-b transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-4.5 h-4.5 text-[#0c4a6e]" />
+                  <h3 className={`font-sans font-bold text-sm uppercase tracking-wider ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
+                    Chart Options
+                  </h3>
                 </div>
-              </div>
-
-              {/* Option 2: Meter Change */}
-              <div className="flex flex-col gap-2">
-                <label className="font-bold uppercase tracking-wider text-[10.5px] text-slate-400">Meter / Time Signature</label>
-                <div className="relative">
-                  <select
-                    value={currentSong.timeSignature || '4/4'}
-                    onChange={(e) => {
-                      const newSig = e.target.value as '4/4' | '3/4';
-                      if (onUpdateTimeSignature) {
-                        onUpdateTimeSignature(newSig);
-                      } else {
-                        onUpdateSongReference?.(currentSong.id, { timeSignature: newSig });
-                      }
-                      setToastMessage(`Time signature changed to ${newSig}`);
-                    }}
-                    className={`w-full p-2.5 rounded-xl border font-sans font-bold text-xs appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#0c4a6e] ${
-                      isDark 
-                        ? 'bg-slate-900 border-slate-800 text-slate-100' 
-                        : 'bg-slate-50 border-slate-200 text-slate-850'
-                    }`}
-                  >
-                    <option value="4/4">4/4 Standard (Common Time)</option>
-                    <option value="3/4">3/4 Waltz (Triple Meter)</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
-                    <SlidersHorizontal className="w-4 h-4" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Option 3: Export Details */}
-              <div className="flex flex-col gap-2 pt-1">
-                <label className="font-bold uppercase tracking-wider text-[10.5px] text-slate-400">Export Options</label>
                 <button
-                  type="button"
-                  onClick={(e) => {
-                    handleExport(e);
-                    setIsOptionsOpen(false);
-                    setToastMessage("Chart details exported successfully!");
-                  }}
-                  className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-xs ${
-                    isDark
-                      ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
-                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800'
-                  }`}
+                  onClick={() => setIsOptionsOpen(false)}
+                  className={`p-1 rounded-lg transition-colors ${isDark ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-850'}`}
                 >
-                  <Download className="w-4 h-4 text-[#0c4a6e]" />
-                  <span>Download Chord Chart (.HTML)</span>
+                  <X className="w-5 h-5 pointer-events-none" />
                 </button>
               </div>
 
-              {/* Option 4: Delete Chart (Soft Delete to Trash) */}
-              <div className="flex flex-col gap-2 pt-1">
-                <label className="font-bold uppercase tracking-wider text-[10.5px] text-rose-500/80">Irreversible Actions</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (confirm(`Are you sure you want to send "${currentSong.title}" to the Trash?`)) {
+              {/* Modal Content */}
+              <div className="p-5 flex flex-col gap-6 text-sm">
+                {/* Option 1: Transposition */}
+                <div className="flex flex-col gap-2">
+                  <div className="relative">
+                    <select
+                      value={currentSong.key ? (currentSong.key.includes(' ') ? currentSong.key : `${currentSong.key} Maj`) : 'C Maj'}
+                      onChange={(e) => {
+                        const targetKey = e.target.value;
+                        onTransposeSong(currentSong.id, targetKey, true);
+                        setToastMessage(`Chords adjusted to target key: ${targetKey}`);
+                      }}
+                      className={`w-full p-2.5 rounded-xl border font-sans font-bold text-xs appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#0c4a6e] ${
+                        isDark 
+                          ? 'bg-slate-900 border-slate-800 text-slate-100' 
+                          : 'bg-slate-50 border-slate-200 text-slate-850'
+                      }`}
+                    >
+                      <optgroup label="Major Keys" className={isDark ? 'bg-slate-950 text-slate-100' : 'bg-white text-slate-800'}>
+                        {['C Maj', 'Db Maj', 'D Maj', 'Eb Maj', 'E Maj', 'F Maj', 'F# Maj', 'G Maj', 'Ab Maj', 'A Maj', 'Bb Maj', 'B Maj'].map((k) => (
+                          <option key={k} value={k}>
+                            {formatMusicSymbols(k)}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Minor Keys" className={isDark ? 'bg-slate-950 text-slate-100' : 'bg-white text-slate-800'}>
+                        {['A Min', 'Bb Min', 'B Min', 'C Min', 'C# Min', 'D Min', 'Eb Min', 'E Min', 'F Min', 'F# Min', 'G Min', 'G# Min'].map((k) => (
+                          <option key={k} value={k}>
+                            {formatMusicSymbols(k)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                    <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
+                      <Music className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Option 2: Meter Change */}
+                <div className="flex flex-col gap-2">
+                  <div className="relative">
+                    <select
+                      value={currentSong.timeSignature || '4/4'}
+                      onChange={(e) => {
+                        const newSig = e.target.value as '4/4' | '3/4';
+                        if (onUpdateTimeSignature) {
+                          onUpdateTimeSignature(newSig);
+                        } else {
+                          onUpdateSongReference?.(currentSong.id, { timeSignature: newSig });
+                        }
+                        setToastMessage(`Time signature changed to ${newSig}`);
+                      }}
+                      className={`w-full p-2.5 rounded-xl border font-sans font-bold text-xs appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#0c4a6e] ${
+                        isDark 
+                          ? 'bg-slate-900 border-slate-800 text-slate-100' 
+                          : 'bg-slate-50 border-slate-200 text-slate-850'
+                      }`}
+                    >
+                      <option value="4/4">4/4 Standard (Common Time)</option>
+                      <option value="3/4">3/4 Waltz (Triple Meter)</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
+                      <SlidersHorizontal className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Option 3: Export Details */}
+                <div className="flex flex-col gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      handleExport(e);
                       setIsOptionsOpen(false);
-                      onUpdateSongReference?.(currentSong.id, { isDeleted: true });
-                    }
-                  }}
-                  className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-xs ${
-                    isDark
-                      ? 'bg-rose-950/20 border-rose-900/40 hover:bg-rose-900/20 text-rose-400'
-                      : 'bg-rose-50 border-rose-100 hover:bg-rose-100/60 text-rose-600'
-                  }`}
+                      setToastMessage("Chart details exported successfully!");
+                    }}
+                    className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-xs ${
+                      isDark
+                        ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
+                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800'
+                    }`}
+                  >
+                    <Download className="w-4 h-4 text-[#0c4a6e]" />
+                    <span>Download Chord Chart (.HTML)</span>
+                  </button>
+                </div>
+
+                {/* Option 4: Delete Chart (Soft Delete to Trash) */}
+                <div className="flex flex-col gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to send "${currentSong.title}" to the Trash?`)) {
+                        setIsOptionsOpen(false);
+                        onUpdateSongReference?.(currentSong.id, { isDeleted: true });
+                      }
+                    }}
+                    className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-xs ${
+                      isDark
+                        ? 'bg-rose-950/20 border-rose-900/40 hover:bg-rose-900/20 text-rose-400'
+                        : 'bg-rose-50 border-rose-100 hover:bg-rose-100/60 text-rose-600'
+                    }`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Move Chart to Trash</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className={`px-5 py-4 border-t flex justify-end transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-55 bg-[#f8fafc] dark:bg-slate-900 border-slate-100'}`}>
+                <button
+                  onClick={() => setIsOptionsOpen(false)}
+                  className={`px-5 py-2 font-bold text-xs rounded-xl shadow-xs transition active:scale-95 cursor-pointer bg-[#0c4a6e] hover:bg-sky-850 text-white`}
                 >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Move Chart to Trash</span>
+                  Close
                 </button>
               </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className={`px-5 py-4 border-t flex justify-end transition-colors ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-55 bg-[#f8fafc] dark:bg-slate-900 border-slate-100'}`}>
-              <button
-                onClick={() => setIsOptionsOpen(false)}
-                className={`px-5 py-2 font-bold text-xs rounded-xl shadow-xs transition active:scale-95 cursor-pointer bg-[#0c4a6e] hover:bg-sky-850 text-white`}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {isEditingTitle && (
         <div 
@@ -2144,6 +2127,25 @@ export function LeadSheet({
             )}
           </div>
         </div>
+      )}
+
+      {/* Tactile Floating Options/Settings Action Button (FAB) in the bottom-right corner */}
+      {selectedMeasureId === null && (
+        <button
+          type="button"
+          onClick={() => setIsOptionsOpen(!isOptionsOpen)}
+          className={`fixed bottom-6 right-6 z-45 flex items-center justify-center w-12 h-12 rounded-full transition-all cursor-pointer active:scale-95 border shadow-[0_4px_16px_rgba(0,0,0,0.15)] ${
+            isOptionsOpen 
+              ? 'bg-[#0c4a6e] border-[#0c4a6e] text-white' 
+              : isDark 
+                ? 'bg-slate-900 hover:bg-slate-855 text-slate-200 border-slate-800' 
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/85 shadow-[0_2px_10px_rgba(15,23,42,0.06)]'
+          } backdrop-blur-md`}
+          title="Display Chart Options"
+          id="floating_settings_btn"
+        >
+          <SlidersHorizontal className="w-5 h-5" />
+        </button>
       )}
 
     </div>

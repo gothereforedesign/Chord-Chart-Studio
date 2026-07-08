@@ -934,24 +934,42 @@ export function TactileEditor({
                   <span className="text-[12px] sm:text-[14px] font-black leading-none">{timeSignature}</span>
                 </button>
 
-                {/* 2. % Repeat */}
+                {/* 2. °/° Repeat */}
                 <button
                   onClick={() => {
-                    if (!slotData.isEmpty) {
-                      onUpdateSlot({ ...slotData, suffix: '%' });
+                    const isRepeat = slotData && !slotData.isEmpty && slotData.suffix === '%';
+                    if (isRepeat) {
+                      onUpdateSlot({
+                        root: 0,
+                        accidental: 'natural',
+                        suffix: '',
+                        isEmpty: true,
+                        slashRoot: null,
+                        slashAccidental: null,
+                      });
+                    } else {
+                      onUpdateSlot({
+                        root: slotData?.root ?? 0,
+                        accidental: slotData?.accidental ?? 'natural',
+                        suffix: '%',
+                        isEmpty: false,
+                        slashRoot: null,
+                        slashAccidental: null,
+                      });
                     }
                   }}
-                  disabled={slotData.isEmpty}
-                  className={`h-11 rounded-lg border flex items-center justify-center transition active:scale-95 border-b-2 text-[17px] sm:text-[19px] font-black ${
-                    slotData.isEmpty
-                      ? 'bg-[#19191b] border-transparent text-stone-700 cursor-not-allowed'
-                      : slotData.suffix === '%'
-                        ? 'bg-blue-600 border-blue-800 text-white font-black'
-                        : 'bg-[#252528] hover:bg-[#343438] text-stone-100 border-[#1a1a1c]'
+                  className={`h-11 rounded-lg border flex items-center justify-center transition active:scale-95 border-b-2 ${
+                    slotData && !slotData.isEmpty && slotData.suffix === '%'
+                      ? 'bg-blue-600 border-blue-800 text-white'
+                      : 'bg-[#252528] hover:bg-[#343438] text-stone-100 border-[#1a1a1c]'
                   }`}
-                  title="Repeat chord measure (%)"
+                  title="Repeat chord measure (°/°)"
                 >
-                  %
+                  <svg className="w-6 h-6 stroke-current" viewBox="0 0 24 24" fill="none">
+                    <line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                    <circle cx="8.5" cy="8.5" r="2.2" stroke="currentColor" strokeWidth="2" fill="none" />
+                    <circle cx="15.5" cy="15.5" r="2.2" stroke="currentColor" strokeWidth="2" fill="none" />
+                  </svg>
                 </button>
 
                 {/* 3. / Slash Note Mode */}
