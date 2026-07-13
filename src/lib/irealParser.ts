@@ -54,9 +54,13 @@ export function buildIRealGridMatrix(measures: Measure[], timeSignature: string,
         // Find which cell to place this in
         let cellIdx = sIdx; 
 
-        const transposedRootIndex = (slot.root + semitoneShift + 120) % 12;
-        const rootName = getNoteName(transposedRootIndex, keySig, slot.accidental || undefined);
-        const suffix = slot.suffix || '';
+        let rootName = '';
+        let suffix = '';
+        if (slot.root !== undefined && slot.root !== null && slot.root !== -1) {
+          const transposedRootIndex = (slot.root + semitoneShift + 120) % 12;
+          rootName = getNoteName(transposedRootIndex, keySig, slot.accidental || undefined);
+          suffix = slot.suffix || '';
+        }
         let over: IRealCell['chord'] = undefined;
         if (slot.slashRoot !== undefined && slot.slashRoot !== null) {
           const transposedSlashRootIndex = (slot.slashRoot + semitoneShift + 120) % 12;

@@ -195,6 +195,7 @@ export function formatMusicSymbols(str: string): string {
 export function formatChordModifier(str: string): string {
   if (!str) return '';
   return formatMusicSymbols(str)
+    .replace(/m7b5/g, 'ø7')
     .replace(/maj/g, 'Δ')
     .replace(/min/g, '–')
     .replace(/dim/g, '°')
@@ -216,7 +217,10 @@ export function formatSectionLabelString(str: string): string {
 }
 
 // Function to get note name based on root index and active key spelling rule
-export function getNoteName(root: number, key: string, customAccidental?: 'sharp' | 'flat' | 'natural'): string {
+export function getNoteName(root: number | null | undefined, key: string, customAccidental?: 'sharp' | 'flat' | 'natural'): string {
+  if (root === null || root === undefined || root === -1) {
+    return '';
+  }
   const parsedRoot = Number(root);
   const safeRoot = isNaN(parsedRoot) ? 0 : ((Math.floor(parsedRoot) % 12) + 12) % 12;
 
@@ -450,12 +454,45 @@ export function parseSingleChordString(raw: string): ChordSlot {
     }
   }
 
-  if (!rootStr) {
-    return { root: 0, accidental: 'natural', suffix: '', isEmpty: true };
-  }
-
   const sharps = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   const flats = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+  if (!rootStr) {
+    if (slashPart) {
+      const firstS = slashPart[0].toUpperCase();
+      if (['A', 'B', 'C', 'D', 'E', 'F', 'G'].includes(firstS)) {
+        let slashRootStr = firstS;
+        const sChar1 = slashPart[1];
+        const sIsSus = sChar1 && (sChar1 === 's' || sChar1 === 'S') && slashPart.substring(1).toLowerCase().startsWith('sus');
+        if (sChar1 === '#' || sChar1 === '♯' || ((sChar1 === 's' || sChar1 === 'S') && !sIsSus)) {
+          slashRootStr += '#';
+        } else if (sChar1 === 'b' || sChar1 === '♭' || sChar1 === 'f' || sChar1 === 'F') {
+          slashRootStr += 'b';
+        }
+        let sRootIdx = sharps.indexOf(slashRootStr);
+        if (sRootIdx === -1) {
+          sRootIdx = flats.indexOf(slashRootStr);
+        }
+        if (sRootIdx !== -1) {
+          let sAccValue: 'sharp' | 'flat' | 'natural' = 'natural';
+          if (slashRootStr.endsWith('#') || slashRootStr.endsWith('♯')) {
+            sAccValue = 'sharp';
+          } else if (slashRootStr.endsWith('b') || slashRootStr.endsWith('♭')) {
+            sAccValue = 'flat';
+          }
+          return {
+            root: -1,
+            accidental: 'natural',
+            suffix: '',
+            isEmpty: false,
+            slashRoot: sRootIdx,
+            slashAccidental: sAccValue
+          };
+        }
+      }
+    }
+    return { root: 0, accidental: 'natural', suffix: '', isEmpty: true };
+  }
 
   let rootIdx = sharps.indexOf(rootStr);
   if (rootIdx === -1) {

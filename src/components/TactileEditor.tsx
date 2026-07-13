@@ -85,6 +85,40 @@ function parseChordString(inputStr: string): { root: number; accidental: 'natura
     return { root: 0, accidental: 'natural', suffix: '', isEmpty: true, slashRoot: null, slashAccidental: null };
   }
 
+  // Handle slash-only chords (e.g. /A, /F#)
+  if (clean.startsWith('/')) {
+    const slashLetter = clean.slice(1, 2);
+    const slashAcc = clean.slice(2);
+    const baseMap: { [key: string]: number } = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    if (slashLetter && baseMap[slashLetter.toUpperCase()] !== undefined) {
+      let sRoot = baseMap[slashLetter.toUpperCase()];
+      let slashAccidentalVal: 'flat' | 'sharp' | null = null;
+      if (slashAcc === 'b' || slashAcc === '♭') {
+        slashAccidentalVal = 'flat';
+        if (sRoot === 11) sRoot = 10;
+        else if (sRoot === 4) sRoot = 3;
+        else if (sRoot === 9) sRoot = 8;
+        else if (sRoot === 2) sRoot = 1;
+        else if (sRoot === 7) sRoot = 6;
+      } else if (slashAcc === '#' || slashAcc === '♯') {
+        slashAccidentalVal = 'sharp';
+        if (sRoot === 0) sRoot = 1;
+        else if (sRoot === 2) sRoot = 3;
+        else if (sRoot === 5) sRoot = 6;
+        else if (sRoot === 7) sRoot = 8;
+        else if (sRoot === 9) sRoot = 10;
+      }
+      return {
+        root: -1,
+        accidental: 'natural',
+        suffix: '',
+        slashRoot: sRoot,
+        slashAccidental: slashAccidentalVal,
+        isEmpty: false
+      };
+    }
+  }
+
   // Matches Root (A-G), optional accidental (b,#,flat,sharp), optional suffix, optional slash with another root/accidental
   const regex = /^([A-G])(b|#|♭|♯)?([^/]*)(?:\/([A-G])(b|#|♭|♯)?)?$/i;
   const match = clean.match(regex);
@@ -215,9 +249,39 @@ export function TactileEditor({
   const [isCompactMode, setIsCompactMode] = React.useState(true);
   const [chordInputValue, setChordInputValue] = React.useState('');
 
+  const lastSelectedCellRef = React.useRef<{ measureId: string | null; slotIndex: number | null }>({ measureId: null, slotIndex: null });
+
   React.useEffect(() => {
+    const cellChanged = 
+      lastSelectedCellRef.current.measureId !== selectedMeasureId ||
+      lastSelectedCellRef.current.slotIndex !== selectedSlotIndex;
+
+    lastSelectedCellRef.current = { measureId: selectedMeasureId, slotIndex: selectedSlotIndex };
+
     if (slotData) {
-      setChordInputValue(getChordString(slotData));
+      if (cellChanged) {
+        setChordInputValue(getChordString(slotData));
+      } else {
+        const parsedCurrentInput = parseChordString(chordInputValue);
+        const normSlotSlashAcc = (slotData.slashAccidental === 'natural' || !slotData.slashAccidental) ? null : slotData.slashAccidental;
+        const normParsedSlashAcc = parsedCurrentInput.slashAccidental || null;
+
+        const isSame = 
+          slotData.isEmpty === parsedCurrentInput.isEmpty &&
+          (slotData.isEmpty || (
+            slotData.root === parsedCurrentInput.root &&
+            slotData.accidental === parsedCurrentInput.accidental &&
+            slotData.suffix === parsedCurrentInput.suffix &&
+            (slotData.slashRoot ?? null) === (parsedCurrentInput.slashRoot ?? null) &&
+            normSlotSlashAcc === normParsedSlashAcc
+          ));
+
+        if (!isSame) {
+          setChordInputValue(getChordString(slotData));
+        }
+      }
+    } else {
+      setChordInputValue('');
     }
   }, [selectedMeasureId, selectedSlotIndex, slotData]);
 
@@ -331,31 +395,63 @@ export function TactileEditor({
   // Custom Accidental Modifiers
   const handleFlat = () => {
     if (slotData.isEmpty) return;
-    if (slotData.accidental === 'flat') {
-      onUpdateSlot({ ...slotData, accidental: 'natural' });
+    if (slotData.root === -1) {
+      if (slotData.slashAccidental === 'flat') {
+        onUpdateSlot({ ...slotData, slashAccidental: null });
+      } else {
+        let newSlashRoot = slotData.slashRoot ?? 0;
+        if (newSlashRoot === 11) newSlashRoot = 10;
+        else if (newSlashRoot === 4) newSlashRoot = 3;
+        else if (newSlashRoot === 9) newSlashRoot = 8;
+        else if (newSlashRoot === 2) newSlashRoot = 1;
+        else if (newSlashRoot === 7) newSlashRoot = 6;
+        onUpdateSlot({ ...slotData, slashRoot: newSlashRoot, slashAccidental: 'flat' });
+      }
     } else {
-      let newRoot = slotData.root;
-      if (slotData.root === 11) newRoot = 10;
-      else if (slotData.root === 4) newRoot = 3;
-      else if (slotData.root === 9) newRoot = 8;
-      else if (slotData.root === 2) newRoot = 1;
-      else if (slotData.root === 7) newRoot = 6;
-      onUpdateSlot({ ...slotData, root: newRoot, accidental: 'flat' });
+      if (slotData.accidental === 'flat') {
+        onUpdateSlot({ ...slotData, accidental: 'natural' });
+      } else {
+        let newRoot = slotData.root;
+        if (newRoot >= 0) {
+          if (slotData.root === 11) newRoot = 10;
+          else if (slotData.root === 4) newRoot = 3;
+          else if (slotData.root === 9) newRoot = 8;
+          else if (slotData.root === 2) newRoot = 1;
+          else if (slotData.root === 7) newRoot = 6;
+        }
+        onUpdateSlot({ ...slotData, root: newRoot, accidental: 'flat' });
+      }
     }
   };
 
   const handleSharp = () => {
     if (slotData.isEmpty) return;
-    if (slotData.accidental === 'sharp') {
-      onUpdateSlot({ ...slotData, accidental: 'natural' });
+    if (slotData.root === -1) {
+      if (slotData.slashAccidental === 'sharp') {
+        onUpdateSlot({ ...slotData, slashAccidental: null });
+      } else {
+        let newSlashRoot = slotData.slashRoot ?? 0;
+        if (newSlashRoot === 0) newSlashRoot = 1;
+        else if (newSlashRoot === 2) newSlashRoot = 3;
+        else if (newSlashRoot === 5) newSlashRoot = 6;
+        else if (newSlashRoot === 7) newSlashRoot = 8;
+        else if (newSlashRoot === 9) newSlashRoot = 10;
+        onUpdateSlot({ ...slotData, slashRoot: newSlashRoot, slashAccidental: 'sharp' });
+      }
     } else {
-      let newRoot = slotData.root;
-      if (slotData.root === 0) newRoot = 1;
-      else if (slotData.root === 2) newRoot = 3;
-      else if (slotData.root === 5) newRoot = 6;
-      else if (slotData.root === 7) newRoot = 8;
-      else if (slotData.root === 9) newRoot = 10;
-      onUpdateSlot({ ...slotData, root: newRoot, accidental: 'sharp' });
+      if (slotData.accidental === 'sharp') {
+        onUpdateSlot({ ...slotData, accidental: 'natural' });
+      } else {
+        let newRoot = slotData.root;
+        if (newRoot >= 0) {
+          if (slotData.root === 0) newRoot = 1;
+          else if (slotData.root === 2) newRoot = 3;
+          else if (slotData.root === 5) newRoot = 6;
+          else if (slotData.root === 7) newRoot = 8;
+          else if (slotData.root === 9) newRoot = 10;
+        }
+        onUpdateSlot({ ...slotData, root: newRoot, accidental: 'sharp' });
+      }
     }
   };
 
@@ -367,6 +463,7 @@ export function TactileEditor({
     if (isSlashPopupOpen) {
       onUpdateSlot({
         ...slotData,
+        root: (slotData.isEmpty || slotData.root === null || slotData.root === undefined) ? -1 : slotData.root,
         slashRoot: baseIdx,
         slashAccidental: undefined,
         isEmpty: false
@@ -529,19 +626,13 @@ export function TactileEditor({
   };
 
   return (
-    <AnimatePresence>
-      <motion.div
-        ref={editorRef}
-        key="editor-sheet"
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 26, stiffness: 210 }}
-        id="tactile_editor_bottom_sheet"
-        className={`fixed bottom-0 left-0 right-0 bg-[#161618] border-t border-[#2e2e30] shadow-[0_-12px_40px_rgba(0,0,0,0.5)] z-50 flex flex-col rounded-t-3xl select-none print:hidden text-white font-sans transition-all duration-300 ${
-          isCompactMode ? 'max-h-[300px] lg:max-h-[230px]' : 'max-h-[90vh] lg:max-h-[520px]'
-        }`}
-      >
+    <div
+      ref={editorRef}
+      id="tactile_editor_bottom_sheet"
+      className={`fixed bottom-0 left-0 right-0 bg-[#161618] border-t border-[#2e2e30] shadow-[0_-12px_40px_rgba(0,0,0,0.5)] z-50 flex flex-col rounded-t-3xl select-none print:hidden text-white font-sans ${
+        isCompactMode ? 'max-h-[300px] lg:max-h-[230px]' : 'max-h-[90vh] lg:max-h-[520px]'
+      }`}
+    >
         {/* Outer board container containing the tactile matrix rows */}
         <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between bg-[#19191b] space-y-2.5 relative" id="ireal_keyboard_board">
           {/* Thin local utility bar for Undo/Redo/Clipboard */}
@@ -639,6 +730,70 @@ export function TactileEditor({
                   />
                 </div>
 
+                {/* Repeat Toggle */}
+                <button
+                  onClick={() => {
+                    const isRepeat = !slotData.isEmpty && slotData.suffix === '%';
+                    if (isRepeat) {
+                      handleClearSlot();
+                    } else {
+                      onUpdateSlot({
+                        root: 0,
+                        accidental: 'natural',
+                        suffix: '%',
+                        isEmpty: false,
+                        slashRoot: null,
+                        slashAccidental: null,
+                      });
+                    }
+                  }}
+                  className={`h-[42px] px-3.5 rounded-xl border flex items-center justify-center transition active:scale-95 border-b-2 ${
+                    !slotData.isEmpty && slotData.suffix === '%'
+                      ? 'bg-blue-600 border-blue-800 text-white shadow shadow-blue-900/30'
+                      : 'bg-[#252528] hover:bg-[#343438] text-stone-100 border-[#1a1a1c]'
+                  }`}
+                  title="Repeat chord measure (%)"
+                >
+                  <svg className="w-5 h-5 stroke-current" viewBox="0 0 24 24" fill="none">
+                    <line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                    <circle cx="8.5" cy="8.5" r="2.2" stroke="currentColor" strokeWidth="2" fill="none" />
+                    <circle cx="15.5" cy="15.5" r="2.2" stroke="currentColor" strokeWidth="2" fill="none" />
+                  </svg>
+                </button>
+
+                {/* Size Toggle */}
+                <button
+                  onClick={() => {
+                    if (slotData.isEmpty) return;
+                    const currentSize = slotData.sizePercent ?? (slotData.isSmall ? 50 : 100);
+                    let nextSize = 100;
+                    if (currentSize === 100) {
+                      nextSize = 50;
+                    } else {
+                      nextSize = 100;
+                    }
+                    onUpdateSlot({
+                      ...slotData,
+                      sizePercent: nextSize,
+                      isSmall: nextSize === 50
+                    });
+                  }}
+                  disabled={slotData.isEmpty}
+                  className={`h-[42px] px-2 rounded-xl border flex flex-col items-center justify-center transition active:scale-95 border-b-2 font-black ${
+                    slotData.isEmpty
+                      ? 'bg-[#19191b] border-transparent text-stone-700 cursor-not-allowed'
+                      : (slotData.sizePercent === 50 || slotData.isSmall)
+                          ? 'bg-amber-700 border-amber-900 text-white shadow font-black'
+                          : 'bg-[#252528] hover:bg-[#343438] text-white border-[#1a1a1c]'
+                  }`}
+                  title="Toggle chord width (W: Whole / H: Half)"
+                >
+                  <span className="text-[8px] leading-none uppercase font-extrabold text-amber-500">Width</span>
+                  <span className="text-[12px] font-black leading-none">
+                    {(slotData.sizePercent === 50 || slotData.isSmall) ? 'H' : 'W'}
+                  </span>
+                </button>
+
                 {/* Clear Button */}
                 <button
                   onClick={handleClearSlot}
@@ -680,7 +835,11 @@ export function TactileEditor({
                 <div className="flex items-center gap-1">
                   {(['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const).map((letter) => {
                     const baseIdx = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[letter];
-                    const isActive = !slotData.isEmpty && slotData.root === baseIdx;
+                    const isActive = !slotData.isEmpty && (
+                      slotData.root === -1 
+                        ? slotData.slashRoot === baseIdx 
+                        : slotData.root === baseIdx
+                    );
                     return (
                       <button
                         key={`compact_root_${letter}`}
@@ -703,7 +862,7 @@ export function TactileEditor({
                     className={`h-9 w-9 sm:w-10 rounded-lg text-sm font-black border flex items-center justify-center transition active:scale-95 ${
                       slotData.isEmpty
                         ? 'bg-[#19191b] border-transparent text-stone-700 cursor-not-allowed'
-                        : slotData.accidental === 'flat'
+                        : (slotData.root === -1 ? slotData.slashAccidental === 'flat' : slotData.accidental === 'flat')
                           ? 'bg-blue-600 border-blue-800 text-white'
                           : 'bg-[#252528] hover:bg-[#343438] text-stone-200 border-[#1a1a1c]'
                     }`}
@@ -717,12 +876,39 @@ export function TactileEditor({
                     className={`h-9 w-9 sm:w-10 rounded-lg text-sm font-black border flex items-center justify-center transition active:scale-95 ${
                       slotData.isEmpty
                         ? 'bg-[#19191b] border-transparent text-stone-700 cursor-not-allowed'
-                        : slotData.accidental === 'sharp'
+                        : (slotData.root === -1 ? slotData.slashAccidental === 'sharp' : slotData.accidental === 'sharp')
                           ? 'bg-blue-600 border-blue-800 text-white'
                           : 'bg-[#252528] hover:bg-[#343438] text-stone-200 border-[#1a1a1c]'
                     }`}
                   >
                     ♯
+                  </button>
+                  {/* Slash / Over Chord Toggle */}
+                  <button
+                    onClick={() => {
+                      if (slotData.slashRoot !== null && slotData.slashRoot !== undefined) {
+                        onUpdateSlot({
+                          ...slotData,
+                          slashRoot: null,
+                          slashAccidental: null
+                        });
+                        setIsSlashPopupOpen(false);
+                      } else {
+                        setIsSlashPopupOpen(!isSlashPopupOpen);
+                        setIsSuffixPopupOpen(false);
+                      }
+                    }}
+                    type="button"
+                    className={`h-9 w-9 sm:w-10 rounded-lg text-sm font-black border flex items-center justify-center transition active:scale-95 border-b-2 ${
+                      isSlashPopupOpen
+                        ? 'bg-sky-600 border-sky-800 text-white font-black animate-pulse'
+                        : (slotData && slotData.slashRoot !== null && slotData.slashRoot !== undefined)
+                          ? 'bg-[#164e63] text-stone-200 border-[#0891b2]'
+                          : 'bg-[#252528] hover:bg-[#343438] text-sky-400 border-[#1a1a1c]'
+                    }`}
+                    title="Slash Note mode (Click then select root letter C-B)"
+                  >
+                    /
                   </button>
                 </div>
 
@@ -772,7 +958,11 @@ export function TactileEditor({
               <div className="grid grid-cols-10 gap-1 sm:gap-1.5">
                 {(['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const).map((letter) => {
                   const baseIdx = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[letter];
-                  const isActive = !slotData.isEmpty && slotData.root === baseIdx;
+                  const isActive = !slotData.isEmpty && (
+                    slotData.root === -1 
+                      ? slotData.slashRoot === baseIdx 
+                      : slotData.root === baseIdx
+                  );
 
                   return (
                     <button
@@ -797,7 +987,7 @@ export function TactileEditor({
                   className={`h-11 rounded-lg text-[19px] sm:text-[22px] font-black border flex items-center justify-center transition active:scale-95 border-b-2 ${
                     slotData.isEmpty
                       ? 'bg-[#19191b] border-transparent text-stone-700 cursor-not-allowed'
-                      : slotData.accidental === 'flat'
+                      : (slotData.root === -1 ? slotData.slashAccidental === 'flat' : slotData.accidental === 'flat')
                         ? 'bg-blue-600 border-blue-800 text-white font-black'
                         : 'bg-[#252528] hover:bg-[#343438] text-stone-100 border-[#1a1a1c]'
                   }`}
@@ -813,7 +1003,7 @@ export function TactileEditor({
                   className={`h-11 rounded-lg text-[18px] sm:text-[21px] font-black border flex items-center justify-center transition active:scale-95 border-b-2 ${
                     slotData.isEmpty
                       ? 'bg-[#19191b] border-transparent text-stone-700 cursor-not-allowed'
-                      : slotData.accidental === 'sharp'
+                      : (slotData.root === -1 ? slotData.slashAccidental === 'sharp' : slotData.accidental === 'sharp')
                         ? 'bg-blue-600 border-blue-800 text-white font-black'
                         : 'bg-[#252528] hover:bg-[#343438] text-stone-100 border-[#1a1a1c]'
                   }`}
@@ -975,7 +1165,6 @@ export function TactileEditor({
                 {/* 3. / Slash Note Mode */}
                 <button
                   onClick={() => {
-                    if (slotData.isEmpty) return;
                     if (slotData.slashRoot !== null && slotData.slashRoot !== undefined) {
                       onUpdateSlot({
                         ...slotData,
@@ -988,15 +1177,12 @@ export function TactileEditor({
                       setIsSuffixPopupOpen(false);
                     }
                   }}
-                  disabled={slotData.isEmpty}
                   className={`h-11 rounded-lg border flex items-center justify-center transition active:scale-95 border-b-2 text-[18px] sm:text-[21px] font-black ${
-                    slotData.isEmpty
-                      ? 'bg-[#19191b] border-transparent text-stone-700 cursor-not-allowed'
-                      : isSlashPopupOpen
-                        ? 'bg-sky-600 border-sky-800 text-white font-black animate-pulse'
-                        : slotData.slashRoot !== null && slotData.slashRoot !== undefined
-                          ? 'bg-[#164e63] text-stone-200 border-[#0891b2] font-black'
-                          : 'bg-[#252528] hover:bg-[#343438] text-sky-400 border-[#1a1a1c]'
+                    isSlashPopupOpen
+                      ? 'bg-sky-600 border-sky-800 text-white font-black animate-pulse'
+                      : slotData.slashRoot !== null && slotData.slashRoot !== undefined
+                        ? 'bg-[#164e63] text-stone-200 border-[#0891b2] font-black'
+                        : 'bg-[#252528] hover:bg-[#343438] text-sky-400 border-[#1a1a1c]'
                   }`}
                   title="Slash Note mode (Click then select root letter C-B)"
                 >
@@ -1110,7 +1296,6 @@ export function TactileEditor({
             </>
           )}
         </div>
-      </motion.div>
-    </AnimatePresence>
+    </div>
   );
 }

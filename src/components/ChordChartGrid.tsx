@@ -23,14 +23,14 @@ export const ChordChartGrid: React.FC<ChordChartGridProps> = ({
   isDark = false
 }) => {
   return (
-    <div className="w-full flex flex-col gap-[6px] px-0 print:gap-[6px] print:px-0 mt-4 pb-2">
+    <div className="w-full flex flex-col gap-[12px] px-0 print:gap-[12px] print:px-0 mt-4 pb-2">
       {systems.map((rowCells, rowIdx) => {
         const hasChordsInRow = rowCells.some(cell => cell.chord);
         return (
           <div key={`sys_${rowIdx}`} className="relative w-full flex justify-center">
             {/* IREAL PRO STRICT 16-COLUMN GRID */}
             <div 
-              className="ireal-row h-[58px] sm:h-[70px] md:h-[84px] relative mx-auto gap-[4px] pl-[2px]"
+              className="ireal-row h-[58px] sm:h-[70px] md:h-[84px] relative mx-auto"
               style={{ gridTemplateColumns: `repeat(${rowCells.length}, minmax(0, 1fr))` }}
             >
               {(() => {
@@ -117,14 +117,10 @@ export const ChordChartGrid: React.FC<ChordChartGridProps> = ({
 
                   
                   // Determine span: if size is 100% (default for full size) and not the last column, span 2
-                  const isFullSize = !!cell.chord;
-                  // Prevent spanning across measure boundaries
-                  const canSpan = colIdx % cellsPerMeasure !== cellsPerMeasure - 1 && colIdx < rowCells.length - 1;
-                  const span = (isFullSize && canSpan) ? 2 : 1;
+                  // We removed the span=2 logic so every beat is clickable and can hold a chord
+                  const span = 1;
                   
-                  if (span === 2) skipCounter = 1;
-
-                  const isEndOfMeasure = (colIdx + span - 1) % cellsPerMeasure === cellsPerMeasure - 1;
+                  const isEndOfMeasure = colIdx % cellsPerMeasure === cellsPerMeasure - 1;
 
                   // Fixed viewBox width so all chords scale to the exact same height identically
                   const viewBoxWidth = 100;
@@ -133,7 +129,7 @@ export const ChordChartGrid: React.FC<ChordChartGridProps> = ({
                     <div
                       key={`cell_${rowIdx}_${colIdx}`}
                       style={{ gridColumn: `span ${span} / span ${span}` }}
-                      className={`ireal-cell flex items-center justify-start pl-[2px] relative
+                      className={`ireal-cell flex items-center justify-start relative
                         ${isEndOfMeasure && hasChordsInRow ? 'border-r border-slate-800 dark:border-slate-400' : ''}
                         ${isSelected ? (isDark ? 'bg-sky-950/60 ring-2 ring-inset ring-sky-500 z-10 rounded-none' : 'bg-sky-100 ring-2 ring-inset ring-sky-400 z-10 rounded-none') : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-none'}
                         cursor-pointer select-none transition-colors h-full`}
@@ -192,71 +188,118 @@ export const ChordChartGrid: React.FC<ChordChartGridProps> = ({
                       const size = cell.sizePercent;
                       const finalScaleX = size === 50 ? 0.5 : 1.0;
                       const textScaleY = 1.0;
-                      
+                                       const { root: slashRoot, acc: slashAcc } = cell.chord.over ? getChordParts(cell.chord.over.root) : { root: '', acc: '' };
+
                       return (
-                      <svg 
-                        viewBox={`0 0 ${viewBoxWidth} 44`} 
-                        preserveAspectRatio="xMinYMid meet"
-                        style={{
-                          height: '80%',
-                          width: 'auto',
-                          aspectRatio: `${viewBoxWidth} / 44`,
-                          overflow: 'visible',
-                          transform: `scale(${finalScaleX}, 1.0)`,
-                          transformOrigin: '0px 34px'
-                        }}
-                        className={`max-w-none ${isDark ? 'text-slate-100' : 'text-slate-900'}`}
-                      >
-                        <text 
-                          x="0" 
-                          y="34" 
-                          textAnchor="start" 
-                          fill="currentColor" 
-                          className="ireal-chords-font" 
-                          style={{
-                            letterSpacing: '-0.04em',
-                            fontWeight: 550,
-                            transform: `scale(1.0, ${textScaleY})`,
-                            transformOrigin: '0px 34px'
-                          }}
-                        >
-                          <tspan fontSize="40">{mainRoot}</tspan>
-                          {mainAcc && (
-                            <tspan 
-                              y="15" 
-                              dx="-0.5" 
-                              fontSize="36"
-                              style={{ fontWeight: 550 }}
+                        <>
+                          <svg 
+                            viewBox={`0 0 ${viewBoxWidth} 52`} 
+                            preserveAspectRatio="xMinYMid meet"
+                            style={{
+                              height: '90%',
+                              width: 'auto',
+                              aspectRatio: `${viewBoxWidth} / 52`,
+                              overflow: 'visible',
+                              transform: `scale(${finalScaleX}, 1.0)`,
+                              transformOrigin: '0px 28px'
+                            }}
+                            className={`max-w-none ${isDark ? 'text-slate-100' : 'text-slate-900'}`}
+                          >
+                            <text 
+                              x="0" 
+                              y="28" 
+                              textAnchor="start" 
+                              fill="currentColor" 
+                              className="ireal-chords-font" 
+                              style={{
+                                letterSpacing: '-0.04em',
+                                fontWeight: 550,
+                                transform: `scale(1.0, ${textScaleY})`,
+                                transformOrigin: '0px 28px'
+                              }}
                             >
-                              {mainAcc}
-                            </tspan>
-                          )}
-                          
-                          {/* Extensions */}
-                          {cell.chord.modifiers && (() => {
-                            const mod = formatChordModifier(cell.chord.modifiers);
-                            const dxVal = mainAcc ? "-1" : "-0.5";
-                            return (
-                              <tspan y="34" dx={dxVal} fontSize="20" style={{ fontWeight: 600 }}>{mod}</tspan>
-                            );
-                          })()}
-                          
-                          {/* Slash Chords */}
-                          {cell.chord.over && (() => {
-                            const { root: slashRoot, acc: slashAcc } = getChordParts(cell.chord.over.root);
-                            return (
                               <tspan 
-                                y="34" 
-                                dx="-0.5"
-                                className={isDark ? 'fill-slate-400' : 'fill-slate-600'}
+                                fontSize="38" 
+                                style={{ letterSpacing: '-3px' }}
                               >
-                                <tspan fontSize="28" dx="-0.5">/{slashRoot}</tspan>
-                                {slashAcc && <tspan y="22" dx="-0.5" fontSize="24">{slashAcc}</tspan>}
+                                {mainRoot}
                               </tspan>
-                            );
-                          })()}
-                        </text>
-                      </svg>
+                              {mainAcc && (
+                                <tspan 
+                                  y="12" 
+                                  dx="-0.5" 
+                                  fontSize="36"
+                                  style={{ fontWeight: 550 }}
+                                >
+                                  {mainAcc}
+                                </tspan>
+                              )}
+                              
+                              {/* Extensions */}
+                              {cell.chord.modifiers && (() => {
+                                const mod = formatChordModifier(cell.chord.modifiers);
+                                const dxVal = mainAcc ? "-6" : "1";
+                                
+                                // Render 'Δ' with 20% reduced height (scaleY(0.8)) while keeping horizontal width intact
+                                const parts = [];
+                                for (let i = 0; i < mod.length; i++) {
+                                  const char = mod[i];
+                                  if (char === 'Δ') {
+                                    parts.push(
+                                      <tspan 
+                                        key={i} 
+                                        fontSize="20" 
+                                        style={{ 
+                                          transform: 'scaleY(0.8)', 
+                                          transformOrigin: 'center',
+                                          display: 'inline-block'
+                                        }}
+                                      >
+                                        Δ
+                                      </tspan>
+                                    );
+                                  } else {
+                                    parts.push(<tspan key={i}>{char}</tspan>);
+                                  }
+                                }
+                                
+                                let modStyle: React.CSSProperties = { fontWeight: 600 };
+                                let modProps: any = {};
+                                
+                                const numMatches = (mod.match(/\d+/g) || []).length;
+                                const hasMultipleExtensions = numMatches >= 2;
+                                
+                                if (mod === '7alt' || hasMultipleExtensions) {
+                                  modProps.textLength = 23;
+                                  modProps.lengthAdjust = "spacingAndGlyphs";
+                                }
+                                
+                                return (
+                                  <tspan y="28" dx={dxVal} fontSize="20" style={modStyle} {...modProps}>
+                                    {parts}
+                                  </tspan>
+                                );
+                              })()}
+                            </text>
+                          </svg>
+
+                          {cell.chord.over && (
+                            <div className="absolute -bottom-[8px] right-1.5 flex flex-row items-baseline select-none whitespace-nowrap z-20 pointer-events-none pb-[1px] md:pb-[2px]">
+                              <span 
+                                className={`font-sans text-[14px] ${isDark ? 'text-slate-300' : 'text-neutral-600'} select-none leading-none`}
+                                style={{ fontWeight: 600, marginRight: '-0.5px' }}
+                              >
+                                /
+                              </span>
+                              <span 
+                                className={`font-sans text-[14px] ${isDark ? 'text-slate-100' : 'text-black'} select-none uppercase leading-none`}
+                                style={{ fontWeight: 600 }}
+                              >
+                                {slashRoot}{slashAcc}
+                              </span>
+                            </div>
+                          )}
+                        </>
                       );
                     })()}
 

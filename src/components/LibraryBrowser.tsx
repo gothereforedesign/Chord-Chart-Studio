@@ -461,35 +461,23 @@ export function LibraryBrowser({
 
   // Fast Full Catalog JSON Backup Download
   const handleDownloadFullBackup = () => {
-    const playlistName = 'Virtuoso Full Catalog';
-    const irealUri = generateIRealPlaylistUri(playlistName, songs);
-
-    const htmlContent = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>iReal Pro Export - ${playlistName}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px 20px; max-width: 600px; margin: 0 auto; text-align: center; }
-    h1 { color: #0c4a6e; }
-    p { color: #64748b; margin-bottom: 30px; }
-    .btn { display: inline-block; background: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; }
-    .btn:hover { background: #0284c7; }
-  </style>
-</head>
-<body>
-  <h1>Virtuoso Backup</h1>
-  <p>Click the button below on a device with iReal Pro installed to import your full catalog.</p>
-  <a class="btn" href="${irealUri}">Import to iReal Pro</a>
-</body>
-</html>`;
-
-    const dataStr = "data:text/html;charset=utf-8," + encodeURIComponent(htmlContent);
-    const dlAnchorElem = document.createElement('a');
-    dlAnchorElem.setAttribute("href", dataStr);
-    dlAnchorElem.setAttribute("download", `virtuoso_repertoire_backup_${new Date().toISOString().slice(0,10)}.html`);
-    dlAnchorElem.click();
+    try {
+      const dataStr = JSON.stringify(songs, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const dlAnchorElem = document.createElement('a');
+      dlAnchorElem.setAttribute("href", url);
+      dlAnchorElem.setAttribute("download", `virtuoso_repertoire_backup_${new Date().toISOString().slice(0,10)}.json`);
+      dlAnchorElem.click();
+      URL.revokeObjectURL(url);
+      if (onShowToast) {
+        onShowToast(`Exported ${songs.length} charts successfully as JSON!`, 'success');
+      }
+    } catch (err: any) {
+      if (onShowToast) {
+        onShowToast(`Export failed: ${err.message}`, 'error');
+      }
+    }
   };
 
   // Section specific (or playlist-specific) song backup downloader
@@ -517,41 +505,23 @@ export function LibraryBrowser({
       }
     }
 
-    const isCustomPlaylist = currentSubView === 'list' && !['all', 'recent', 'uncategorized', 'trash'].includes(selectedCategory);
-    const folderObj = isCustomPlaylist ? folders.find(f => f.id === selectedCategory) : null;
-    const playlistName = folderObj ? folderObj.name : 'Virtuoso Playlist';
+    try {
+      const dataStr = JSON.stringify(filteredSongs, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const dlAnchorElem = document.createElement('a');
+      dlAnchorElem.setAttribute("href", url);
+      dlAnchorElem.setAttribute("download", `virtuoso_${filenameParam}_backup_${new Date().toISOString().slice(0,10)}.json`);
+      dlAnchorElem.click();
+      URL.revokeObjectURL(url);
 
-    const irealUri = generateIRealPlaylistUri(playlistName, filteredSongs);
-
-    const htmlContent = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>iReal Pro Export - ${playlistName}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px 20px; max-width: 600px; margin: 0 auto; text-align: center; }
-    h1 { color: #0c4a6e; }
-    p { color: #64748b; margin-bottom: 30px; }
-    .btn { display: inline-block; background: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; }
-    .btn:hover { background: #0284c7; }
-  </style>
-</head>
-<body>
-  <h1>Virtuoso Backup</h1>
-  <p>Click the button below on a device with iReal Pro installed to import your playlist.</p>
-  <a class="btn" href="${irealUri}">Import to iReal Pro</a>
-</body>
-</html>`;
-
-    const dataStr = "data:text/html;charset=utf-8," + encodeURIComponent(htmlContent);
-    const dlAnchorElem = document.createElement('a');
-    dlAnchorElem.setAttribute("href", dataStr);
-    dlAnchorElem.setAttribute("download", `virtuoso_${filenameParam}_backup_${new Date().toISOString().slice(0,10)}.html`);
-    dlAnchorElem.click();
-
-    if (onShowToast) {
-      onShowToast(`Exported ${filteredSongs.length} charts successfully!`, 'success');
+      if (onShowToast) {
+        onShowToast(`Exported ${filteredSongs.length} charts successfully as JSON!`, 'success');
+      }
+    } catch (err: any) {
+      if (onShowToast) {
+        onShowToast(`Export failed: ${err.message}`, 'error');
+      }
     }
   };
 
@@ -603,11 +573,11 @@ export function LibraryBrowser({
             <button
               onClick={handleDownloadSectionBackup}
               className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full text-[10px] font-extrabold uppercase tracking-widest transition cursor-pointer active:scale-95 ${isDark ? 'bg-sky-400/10 text-sky-400 hover:bg-sky-400/20' : 'bg-[#0c4a6e]/10 text-[#0c4a6e]/20 text-[#0c4a6e]'}`}
-              title={`Download ${selectedFolderName} Backup HTML`}
+              title={`Download ${selectedFolderName} Backup JSON`}
               id="header_btn_download"
             >
               <FileDown className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Export HTML</span>
+              <span className="hidden sm:inline">Export JSON</span>
             </button>
           )}
 
@@ -1145,20 +1115,20 @@ export function LibraryBrowser({
               </div>
 
               <div className="space-y-5 text-left text-xs flex-1">
-                {/* HTML Chart Repository Backup */}
+                {/* JSON Chart Repository Backup */}
                 <div className="space-y-2">
                   <span className={`font-bold uppercase tracking-widest text-[9.5px] block ${isDark ? 'text-sky-400' : 'text-[#0c4a6e]'}`}>
-                    HTML Chart Repository Backup (iReal Pro Format)
+                    JSON Chart Repository Backup
                   </span>
                   <p className={`${isDark ? 'text-slate-400' : 'text-slate-500'} leading-relaxed font-semibold`}>
-                    Export your full collection matching standard fakebook score backups. You can open this file on a device with iReal Pro installed.
+                    Export your full collection as a JSON file. This backup can be imported back into Virtuoso anytime to restore or synchronize your repertoire.
                   </p>
                   <button
                     type="button"
                     onClick={handleDownloadFullBackup}
                     className="w-full inline-flex items-center justify-center gap-2 py-3 px-4.5 bg-[#0c4a6e] hover:bg-[#072f47] text-white rounded-xl text-xs font-extrabold uppercase tracking-wide transition cursor-pointer shadow-xs"
                   >
-                    <FileDown className="w-4 h-4" /> Save Backup HTML File
+                    <FileDown className="w-4 h-4" /> Save Backup JSON File
                   </button>
                 </div>
 

@@ -134,6 +134,7 @@ body {
   button,
   #sheet_header_box,
   #tactile_editor_bottom_sheet,
+  #settings_modal_overlay,
   nav,
   aside,
   header {
@@ -163,6 +164,14 @@ body {
   span, div {
     color: black !important;
   }
+
+  /* Clear active, highlighted, or selected states during PDF print */
+  .ireal-cell {
+    background-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
 }
 
 /* The container holding one single line of music */
@@ -171,6 +180,9 @@ body {
   grid-template-columns: repeat(16, 1fr); /* Forces exactly 16 equal columns */
   width: 100% !important;
   max-width: 100% !important;
+  gap: 0px !important;
+  padding-left: 0px !important;
+  padding-right: 0px !important;
 }
 
 /* Individual cell styling */
@@ -180,6 +192,10 @@ body {
   font-family: sans-serif;
   overflow: visible; 
   white-space: nowrap; /* Prevents long chords from wrapping to a new line */
+  padding-left: 0px !important;
+  padding-right: 0px !important;
+  margin-left: 0px !important;
+  margin-right: 0px !important;
 }
 
 /* Prevent native selection handles and touch callouts across the interactive score workspace */

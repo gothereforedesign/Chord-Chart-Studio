@@ -376,148 +376,10 @@ export default function App() {
     root.style.setProperty('--accent-light-bg-strong', palette.lightBgStrong);
   }, [accentColor]);
 
-  const isPoppingRef = useRef<boolean>(false);
-  const lastHistoryStateRef = useRef<any>(null);
-
-  // Helper to get active nested levels / view hierarchy state representation
-  const getNavigationState = (
-    screenVal = activeScreen,
-    subviewVal = currentSubView,
-    songIdVal = currentSongId,
-    editingVal = selectedMeasureId !== null,
-    settingsOpenVal = isSettingsOpen,
-    newFolderOpenVal = isNewFolderOpen,
-    newSongOpenVal = isNewSongOpen,
-    editingTitleVal = isEditingTitle,
-    keyChangeOpenVal = isKeyChangeOpen,
-    optionsOpenVal = isOptionsOpen
-  ) => {
-    return {
-      screen: screenVal,
-      subview: subviewVal,
-      songId: songIdVal,
-      editing: editingVal,
-      settingsOpen: settingsOpenVal,
-      newFolderOpen: newFolderOpenVal,
-      newSongOpen: newSongOpenVal,
-      editingTitle: editingTitleVal,
-      keyChangeOpen: keyChangeOpenVal,
-      optionsOpen: optionsOpenVal
-    };
-  };
-
-  // Safe back navigation helper that exits the app once the homescreen is reached
+  // Back navigation helper to immediately execute fallback actions without intercepting native history
   const goBackNav = (fallbackAction: () => void) => {
-    if (lastHistoryStateRef.current && lastHistoryStateRef.current.depth > 0) {
-      window.history.back();
-    } else {
-      fallbackAction();
-    }
+    fallbackAction();
   };
-
-  // Synchronize with phone/browser back button via HTML5 History and custom depth tracking
-  useEffect(() => {
-    const initialState = {
-      ...getNavigationState(),
-      depth: 0
-    };
-    window.history.replaceState(initialState, '');
-    lastHistoryStateRef.current = initialState;
-  }, []);
-
-  useEffect(() => {
-    const currentState = getNavigationState();
-    if (!lastHistoryStateRef.current) return;
-
-    const hasChanged =
-      lastHistoryStateRef.current.screen !== currentState.screen ||
-      lastHistoryStateRef.current.subview !== currentState.subview ||
-      lastHistoryStateRef.current.songId !== currentState.songId ||
-      lastHistoryStateRef.current.editing !== currentState.editing ||
-      lastHistoryStateRef.current.settingsOpen !== currentState.settingsOpen ||
-      lastHistoryStateRef.current.newFolderOpen !== currentState.newFolderOpen ||
-      lastHistoryStateRef.current.newSongOpen !== currentState.newSongOpen ||
-      lastHistoryStateRef.current.editingTitle !== currentState.editingTitle ||
-      lastHistoryStateRef.current.keyChangeOpen !== currentState.keyChangeOpen ||
-      lastHistoryStateRef.current.optionsOpen !== currentState.optionsOpen;
-
-    if (isPoppingRef.current) {
-      if (!hasChanged) {
-        isPoppingRef.current = false;
-      }
-      return;
-    }
-
-    if (hasChanged) {
-      const parentDepth = lastHistoryStateRef.current.depth ?? 0;
-      // We calculate depth based on whether we deep-link or return. This keeps depth tracking highly accurate
-      const nextState = {
-        ...currentState,
-        depth: parentDepth + 1
-      };
-      window.history.pushState(nextState, '');
-      lastHistoryStateRef.current = nextState;
-    }
-  }, [
-    activeScreen,
-    currentSubView,
-    currentSongId,
-    selectedMeasureId,
-    isSettingsOpen,
-    isNewFolderOpen,
-    isNewSongOpen,
-    isEditingTitle,
-    isKeyChangeOpen,
-    isOptionsOpen
-  ]);
-
-  useEffect(() => {
-    const handlePopState = (e: PopStateEvent) => {
-      const state = e.state;
-      if (!state) return;
-
-      isPoppingRef.current = true;
-
-      // Immediately synchronize top history state ref to halt any spurious watch-push actions
-      lastHistoryStateRef.current = state;
-
-      // Batch transition back to historical state values
-      if (state.screen !== activeScreen) {
-        setActiveScreen(state.screen);
-      }
-      if (state.subview !== currentSubView) {
-        setCurrentSubView(state.subview);
-      }
-      if (state.songId !== currentSongId) {
-        setCurrentSongId(state.songId);
-      }
-      if (!state.editing) {
-        setSelectedMeasureId(null);
-        setSelectedSlotIndex(null);
-      }
-      setIsSettingsOpen(!!state.settingsOpen);
-      setIsNewFolderOpen(!!state.newFolderOpen);
-      setIsNewSongOpen(!!state.newSongOpen);
-      setIsEditingTitle(!!state.editingTitle);
-      setIsKeyChangeOpen(!!state.keyChangeOpen);
-      setIsOptionsOpen(!!state.optionsOpen);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [
-    activeScreen,
-    currentSubView,
-    currentSongId,
-    isSettingsOpen,
-    isNewFolderOpen,
-    isNewSongOpen,
-    isEditingTitle,
-    isKeyChangeOpen,
-    isOptionsOpen
-  ]);
 
   // Safeguard: if activeScreen is chart but currentSong is missing or deleted, go back to library screen
   useEffect(() => {
@@ -525,28 +387,6 @@ export default function App() {
       setActiveScreen('library');
     }
   }, [activeScreen, currentSongId, songs]);
-
-  // Handle back button presses in browser/phone to dismiss the keyboard editor
-  useEffect(() => {
-    const isKeyboardOpen = selectedMeasureId !== null && selectedSlotIndex !== null;
-    if (!isKeyboardOpen) return;
-
-    // Push a state to capture the back action
-    window.history.pushState({ keyboardOpen: true }, '');
-
-    const handlePopState = (e: PopStateEvent) => {
-      handleDeselect();
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      // If closed manually (e.g., via onClose 'X' or outside click), pop the dummy state to keep history clean
-      if (window.history.state?.keyboardOpen) {
-        window.history.back();
-      }
-    };
-  }, [selectedMeasureId !== null && selectedSlotIndex !== null]);
 
   // Selection highlighting and clipboard states
   const [selectionStart, setSelectionStart] = useState<{ measureId: string; slotIndex: number } | null>(null);
@@ -686,7 +526,12 @@ export default function App() {
          } else {
            const rawName = getNoteName(slot.root, currentSong.key, slot.accidental);
            const suffixSymbol = getJazzSuffixSymbol(slot.suffix);
-           textMeasures[mSeqIdx].push(`${rawName}${suffixSymbol}`);
+           let slashSuffix = '';
+           if (slot.slashRoot !== undefined && slot.slashRoot !== null) {
+             const slashName = getNoteName(slot.slashRoot, currentSong.key, slot.slashAccidental || undefined);
+             slashSuffix = '/' + slashName;
+           }
+           textMeasures[mSeqIdx].push(`${rawName}${suffixSymbol}${slashSuffix}`);
          }
        }
     }
@@ -935,7 +780,7 @@ export default function App() {
       switch (e.code) {
         case 'Escape':
           e.preventDefault();
-          handleDeselect();
+          goBackNav(() => handleDeselect());
           break;
         case 'ArrowLeft':
           e.preventDefault();
@@ -1233,7 +1078,26 @@ export default function App() {
             let newSuffix = slot.suffix;
             let newSlashRoot = slot.slashRoot;
 
-            if (oldKeyQuality === newKeyQuality) {
+            if (slot.root === -1) {
+              if (slot.slashRoot !== null && slot.slashRoot !== undefined) {
+                if (oldKeyQuality === newKeyQuality) {
+                  newSlashRoot = (slot.slashRoot + diff) % 12;
+                } else {
+                  const slashOffset = (slot.slashRoot - oldKeyIdx + 12) % 12;
+                  let newSlashOffset = slashOffset;
+                  if (oldKeyQuality === 'Maj' && newKeyQuality === 'Min') {
+                    if (slashOffset === 4) newSlashOffset = 3;
+                    else if (slashOffset === 9) newSlashOffset = 8;
+                    else if (slashOffset === 11) newSlashOffset = 10;
+                  } else {
+                    if (slashOffset === 3) newSlashOffset = 4;
+                    else if (slashOffset === 8) newSlashOffset = 9;
+                    else if (slashOffset === 10) newSlashOffset = 11;
+                  }
+                  newSlashRoot = (newKeyIdx + newSlashOffset) % 12;
+                }
+              }
+            } else if (oldKeyQuality === newKeyQuality) {
               // Direct classic transposition
               newRoot = (slot.root + diff) % 12;
               if (slot.slashRoot !== null && slot.slashRoot !== undefined) {
@@ -1575,133 +1439,139 @@ export default function App() {
     <div className={`min-h-screen w-full max-w-full overflow-x-hidden flex flex-col transition-colors duration-150 ${theme === 'dark' ? 'bg-[#0f172a] text-slate-100' : 'text-[#0f172a] bg-[#f8fafc]'}`} id="app_frame_root">
 
       {activeScreen === 'library' ? (
-        <LibraryBrowser
-          songs={songs}
-          folders={folders}
-          theme={theme}
-          onSetTheme={setTheme}
-          accentColor={accentColor}
-          onSetAccentColor={setAccentColor}
-          onSelectSong={(songId) => {
-            setCurrentSongId(songId);
-            setActiveScreen('chart');
-            setSelectedMeasureId(null);
-            setSelectedSlotIndex(null);
-          }}
-          onCreateFolder={handleCreateFolder}
-          onCreateSong={handleCreateSong}
-          onImportMultipleSongs={handleImportMultipleSongs}
-          onDeleteFolder={handleDeleteFolder}
-          onRestoreFolder={handleRestoreFolder}
-          onPermanentDeleteFolder={handlePermanentDeleteFolder}
-          onRenameFolder={handleRenameFolder}
-          onDeleteSong={handleDeleteSong}
-          onRestoreSong={handleRestoreSong}
-          onPermanentDeleteSong={handlePermanentDeleteSong}
-          onPermanentDeleteAll={handlePermanentDeleteAll}
-          onMoveSong={handleMoveSong}
-          onFactoryReset={handleFactoryReset}
-          chordFont={chordFont}
-          onSetChordFont={setChordFont}
-          notationStyle={notationStyle}
-          onSetNotationStyle={setNotationStyle}
-          showMeasureNumbers={showMeasureNumbers}
-          onSetShowMeasureNumbers={setShowMeasureNumbers}
-          onShowToast={showToast}
-          selectedCategory={selectedCategory}
-          setSelectedCategory={setSelectedCategory}
-          currentSubView={currentSubView}
-          setCurrentSubView={setCurrentSubView}
-          isSettingsOpen={isSettingsOpen}
-          onSetSettingsOpen={handleSetSettingsOpen}
-          isNewFolderOpen={isNewFolderOpen}
-          onSetNewFolderOpen={handleSetNewFolderOpen}
-          isNewSongOpen={isNewSongOpen}
-          onSetNewSongOpen={handleSetNewSongOpen}
-        />
-      ) : (
-        currentSong && (
-          <LeadSheet
-            currentSong={currentSong}
+        <div key="library" className="flex-1 flex flex-col min-h-screen">
+          <LibraryBrowser
+            songs={songs}
+            folders={folders}
             theme={theme}
-            onSelectSlot={(mId, sIdx) => {
-              setSelectedMeasureId(mId);
-              setSelectedSlotIndex(sIdx);
-            }}
-            selectedMeasureId={selectedMeasureId}
-            selectedSlotIndex={selectedSlotIndex}
-            onBackToLibrary={() => {
-              setActiveScreen('library');
+            onSetTheme={setTheme}
+            accentColor={accentColor}
+            onSetAccentColor={setAccentColor}
+            onSelectSong={(songId) => {
+              setCurrentSongId(songId);
+              setActiveScreen('chart');
               setSelectedMeasureId(null);
               setSelectedSlotIndex(null);
-              // Ensure all modals/edit drawers are cleared when returning to library
-              setIsSettingsOpen(false);
-              setIsNewFolderOpen(false);
-              setIsNewSongOpen(false);
-              setIsEditingTitle(false);
-              setIsKeyChangeOpen(false);
               setIsOptionsOpen(false);
             }}
-            onAddMeasure={handleAddMeasure}
-            onRemoveLastMeasure={handleRemoveLastMeasure}
-            selectionStart={selectionStart}
-            selectionEnd={selectionEnd}
-            onDragStart={handleDragStart}
-            onDragEnter={handleDragEnter}
-            onShiftSelect={handleShiftSelect}
-            onUpdateSelectionRange={(start, end) => {
-              setSelectionStart(start);
-              setSelectionEnd(end);
-            }}
-            handlesVisible={handlesVisible}
-            setHandlesVisible={setHandlesVisible}
-            onUpdateSongTitle={handleUpdateSongTitle}
-            onUpdateSongSubheading={handleUpdateSongSubheading}
-            onTransposeSong={handleTransposeSong}
-            onUpdateSongNotes={handleUpdateSongNotes}
-            onCopySelection={handleCopySelection}
-            onCutSelection={handleCutSelection}
-            onPasteSelection={handlePasteSelection}
-            onClearSelection={handleClearSelection}
-            onDeselect={handleDeselect}
-            onUpdateSongReference={handleUpdateSongReference}
-            onUpdateTimeSignature={(newSig) => {
-              setSongsWithHistory(prev => prev.map(s => s.id === currentSong.id ? { ...s, timeSignature: newSig } : s));
-            }}
+            onCreateFolder={handleCreateFolder}
+            onCreateSong={handleCreateSong}
+            onImportMultipleSongs={handleImportMultipleSongs}
+            onDeleteFolder={handleDeleteFolder}
+            onRestoreFolder={handleRestoreFolder}
+            onPermanentDeleteFolder={handlePermanentDeleteFolder}
+            onRenameFolder={handleRenameFolder}
+            onDeleteSong={handleDeleteSong}
+            onRestoreSong={handleRestoreSong}
+            onPermanentDeleteSong={handlePermanentDeleteSong}
+            onPermanentDeleteAll={handlePermanentDeleteAll}
+            onMoveSong={handleMoveSong}
+            onFactoryReset={handleFactoryReset}
             chordFont={chordFont}
-            onUpdateChordFont={setChordFont}
+            onSetChordFont={setChordFont}
             notationStyle={notationStyle}
-            onUpdateNotationStyle={setNotationStyle}
+            onSetNotationStyle={setNotationStyle}
             showMeasureNumbers={showMeasureNumbers}
-            onUpdateShowMeasureNumbers={setShowMeasureNumbers}
-            isEditingTitle={isEditingTitle}
-            onSetIsEditingTitle={(open) => {
-              if (!open) {
-                goBackNav(() => setIsEditingTitle(false));
-              } else {
-                setIsEditingTitle(true);
-              }
-            }}
-            isKeyChangeOpen={isKeyChangeOpen}
-            onSetIsKeyChangeOpen={(open) => {
-              if (!open) {
-                goBackNav(() => setIsKeyChangeOpen(false));
-              } else {
-                setIsKeyChangeOpen(true);
-              }
-            }}
-            isOptionsOpen={isOptionsOpen}
-            onSetIsOptionsOpen={(open) => {
-              if (!open) {
-                goBackNav(() => setIsOptionsOpen(false));
-              } else {
-                setIsOptionsOpen(true);
-              }
-            }}
+            onSetShowMeasureNumbers={setShowMeasureNumbers}
+            onShowToast={showToast}
+            selectedCategory={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
+            currentSubView={currentSubView}
+            setCurrentSubView={setCurrentSubView}
+            isSettingsOpen={isSettingsOpen}
+            onSetSettingsOpen={handleSetSettingsOpen}
+            isNewFolderOpen={isNewFolderOpen}
+            onSetNewFolderOpen={handleSetNewFolderOpen}
+            isNewSongOpen={isNewSongOpen}
+            onSetNewSongOpen={handleSetNewSongOpen}
           />
+        </div>
+      ) : (
+        currentSong && (
+          <div key="chart" className="flex-1 flex flex-col min-h-screen">
+            <LeadSheet
+              currentSong={currentSong}
+              theme={theme}
+              onSelectSlot={(mId, sIdx) => {
+                setSelectedMeasureId(mId);
+                setSelectedSlotIndex(sIdx);
+              }}
+              selectedMeasureId={selectedMeasureId}
+              selectedSlotIndex={selectedSlotIndex}
+              onBackToLibrary={() => {
+                setActiveScreen('library');
+                setSelectedMeasureId(null);
+                setSelectedSlotIndex(null);
+                // Ensure all modals/edit drawers are cleared when returning to library
+                setIsSettingsOpen(false);
+                setIsNewFolderOpen(false);
+                setIsNewSongOpen(false);
+                setIsEditingTitle(false);
+                setIsKeyChangeOpen(false);
+                setIsOptionsOpen(false);
+              }}
+              onAddMeasure={handleAddMeasure}
+              onRemoveLastMeasure={handleRemoveLastMeasure}
+              selectionStart={selectionStart}
+              selectionEnd={selectionEnd}
+              onDragStart={handleDragStart}
+              onDragEnter={handleDragEnter}
+              onShiftSelect={handleShiftSelect}
+              onUpdateSelectionRange={(start, end) => {
+                setSelectionStart(start);
+                setSelectionEnd(end);
+              }}
+              handlesVisible={handlesVisible}
+              setHandlesVisible={setHandlesVisible}
+              onUpdateSongTitle={handleUpdateSongTitle}
+              onUpdateSongSubheading={handleUpdateSongSubheading}
+              onTransposeSong={handleTransposeSong}
+              onUpdateSongNotes={handleUpdateSongNotes}
+              onCopySelection={handleCopySelection}
+              onCutSelection={handleCutSelection}
+              onPasteSelection={handlePasteSelection}
+              onClearSelection={handleClearSelection}
+              onDeselect={() => {
+                if (selectedMeasureId !== null) {
+                  goBackNav(() => handleDeselect());
+                } else {
+                  handleDeselect();
+                }
+              }}
+              onUpdateSongReference={handleUpdateSongReference}
+              onUpdateTimeSignature={(newSig) => {
+                setSongsWithHistory(prev => prev.map(s => s.id === currentSong.id ? { ...s, timeSignature: newSig } : s));
+              }}
+              chordFont={chordFont}
+              onUpdateChordFont={setChordFont}
+              notationStyle={notationStyle}
+              onUpdateNotationStyle={setNotationStyle}
+              showMeasureNumbers={showMeasureNumbers}
+              onUpdateShowMeasureNumbers={setShowMeasureNumbers}
+              isEditingTitle={isEditingTitle}
+              onSetIsEditingTitle={(open) => {
+                if (!open) {
+                  goBackNav(() => setIsEditingTitle(false));
+                } else {
+                  setIsEditingTitle(true);
+                }
+              }}
+              isKeyChangeOpen={isKeyChangeOpen}
+              onSetIsKeyChangeOpen={(open) => {
+                if (!open) {
+                  goBackNav(() => setIsKeyChangeOpen(false));
+                } else {
+                  setIsKeyChangeOpen(true);
+                }
+              }}
+              isOptionsOpen={isOptionsOpen}
+              onSetIsOptionsOpen={(open) => {
+                setIsOptionsOpen(open);
+              }}
+            />
+          </div>
         )
       )}
-
 
       {/* Slide-out Tactile Chord Pad Editor */}
       {activeScreen === 'chart' && selectedMeasureId && selectedSlotIndex !== null && selectedSlot && currentSong && (

@@ -8,10 +8,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Song, Measure, ChordSlot, getNoteName, getJazzSuffixSymbol, KEYS, NoteBlock, formatMusicSymbols, formatChordModifier, formatSectionLabelString, getKeySemitone } from '../types';
 import { ChordChartGrid } from './ChordChartGrid';
 import { buildIRealGridMatrix, generateIRealUri } from '../lib/irealParser';
+import html2pdf from 'html2pdf.js';
 import { 
   ArrowLeft, Download, Pencil, X, Music, Check, Sparkles, Layers, GraduationCap,
   RotateCw, ZoomIn, ZoomOut, Maximize2, FileCode, HelpCircle, FileText, ImageIcon, Eye, Info,
-  Copy, Scissors, Clipboard, Trash2, Sun, Moon, SlidersHorizontal, MoreVertical
+  Copy, Scissors, Clipboard, Trash2, Sun, Moon, SlidersHorizontal, MoreVertical, Printer
 } from 'lucide-react';
 
 interface LeadSheetProps {
@@ -968,35 +969,82 @@ export function LeadSheet({
   const handleExport = (e: React.MouseEvent) => {
     e.preventDefault();
     const cleanTitle = currentSong.title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/(^_+|_+$)/g, '') || 'practice_chart';
-    const irealUri = generateIRealUri(currentSong);
+    
+    const keySig = currentSong.key;
+    const timeSig = currentSong.timeSignature || '4/4';
 
-    const htmlContent = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>iReal Pro Export - ${currentSong.title}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px 20px; max-width: 600px; margin: 0 auto; text-align: center; }
-    h1 { color: #0c4a6e; }
-    p { color: #64748b; margin-bottom: 30px; }
-    .btn { display: inline-block; background: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; }
-    .btn:hover { background: #0284c7; }
-  </style>
-</head>
-<body>
-  <h1>Virtuoso Backup</h1>
-  <p>Click the button below on a device with iReal Pro installed to import your chart.</p>
-  <a class="btn" href="${irealUri}">Import to iReal Pro</a>
-</body>
-</html>`;
+    const measuresData = currentSong.grid.map(measure => {
+      return measure.slots.map(slot => {
+        if (slot.isEmpty) return '.';
+        const rootName = getNoteName(slot.root, keySig, slot.accidental || undefined);
+        const suffix = slot.suffix || '';
+        let slashSuffix = '';
+        if (slot.slashRoot !== undefined && slot.slashRoot !== null) {
+          const slashName = getNoteName(slot.slashRoot, keySig, slot.slashAccidental || undefined);
+          slashSuffix = '/' + slashName;
+        }
+        return `${rootName}${suffix}${slashSuffix}`;
+      });
+    });
 
-    const blob = new Blob([htmlContent], { type: 'text/html' });
+    let lastNonEmptyIndex = -1;
+    for (let i = measuresData.length - 1; i >= 0; i--) {
+      const isAllEmpty = measuresData[i].every(b => b === '.' || !b);
+      if (!isAllEmpty) {
+        lastNonEmptyIndex = i;
+        break;
+      }
+    }
+
+    const slicedMeasures = lastNonEmptyIndex !== -1 
+      ? measuresData.slice(0, lastNonEmptyIndex + 1) 
+      : measuresData.slice(0, 8);
+
+    const sectionsArray = currentSong.grid
+      .map((m, idx) => ({ index: idx, label: m.label ? formatSectionLabelString(m.label.trim()) : undefined }))
+      .filter((s): s is { index: number; label: string } => !!s.label && s.label !== '');
+
+    const exportObj: any = {
+      title: currentSong.title,
+      subheading: currentSong.subheading || '',
+      key: keySig,
+      timeSignature: timeSig,
+      measures: slicedMeasures,
+      grid: currentSong.grid.map(m => ({
+        id: m.id,
+        label: m.label ? formatSectionLabelString(m.label.trim()) : undefined,
+        slots: m.slots.map(s => ({
+          root: s.root,
+          accidental: s.accidental || 'natural',
+          suffix: s.suffix || '',
+          isEmpty: !!s.isEmpty,
+          slashRoot: s.slashRoot !== undefined ? s.slashRoot : null,
+          slashAccidental: s.slashAccidental !== undefined ? s.slashAccidental : null,
+          sizePercent: s.sizePercent,
+          isSmall: s.isSmall
+        }))
+      }))
+    };
+
+    if (sectionsArray.length > 0) {
+      exportObj.sections = sectionsArray;
+    }
+
+    if (currentSong.notesReharm) exportObj.notesReharm = currentSong.notesReharm;
+    if (currentSong.notesVoicings) exportObj.notesVoicings = currentSong.notesVoicings;
+    if (currentSong.notesImprov) exportObj.notesImprov = currentSong.notesImprov;
+    if (currentSong.referenceImage) exportObj.referenceImage = currentSong.referenceImage;
+    if (currentSong.referenceImageName) exportObj.referenceImageName = currentSong.referenceImageName;
+    if (currentSong.referencePrompt) exportObj.referencePrompt = currentSong.referencePrompt;
+    if (currentSong.referenceFileName) exportObj.referenceFileName = currentSong.referenceFileName;
+
+    const dataStr = JSON.stringify(exportObj, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${cleanTitle}.html`;
+    link.download = `${cleanTitle}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1188,17 +1236,20 @@ export function LeadSheet({
       );
     }
 
-    const transposedRootIndex = (slot.root + semitoneShift + 12) % 12;
-    const rawName = getNoteName(transposedRootIndex, transposedKeySpelling, slot.accidental);
+    let rawName = '';
+    if (slot.root !== -1 && slot.root !== null && slot.root !== undefined) {
+      const transposedRootIndex = (slot.root + semitoneShift + 12) % 12;
+      rawName = getNoteName(transposedRootIndex, transposedKeySpelling, slot.accidental);
+    }
     const suffixSymbol = getJazzSuffixSymbol(slot.suffix, notationStyle);
 
     let baseLetter = rawName;
     let accidentalMark = '';
 
-    if (rawName.endsWith('b') || rawName.endsWith('♭')) {
+    if (rawName && (rawName.endsWith('b') || rawName.endsWith('♭'))) {
       baseLetter = rawName[0];
       accidentalMark = '♭';
-    } else if (rawName.endsWith('#') || rawName.endsWith('♯')) {
+    } else if (rawName && (rawName.endsWith('#') || rawName.endsWith('♯'))) {
       baseLetter = rawName[0];
       accidentalMark = '♯';
     }
@@ -1411,16 +1462,16 @@ export function LeadSheet({
 
         {/* Absolute Anchor for Slash Bass Note at the bottom-right */}
         {slashRootNote && (
-          <div className="absolute bottom-[4px] right-0 flex flex-row items-baseline select-none whitespace-nowrap pl-1 pb-[1px] md:pb-[2px]">
+          <div className="absolute -bottom-[8px] right-1 flex flex-row items-baseline select-none whitespace-nowrap z-20 pointer-events-none pb-[1px] md:pb-[2px]">
             <span 
-              className={`${activeFontClass} text-[26px] sm:text-[30px] md:text-[35px] ${isDark ? 'text-slate-100' : 'text-black'} opacity-80 select-none leading-none`}
-              style={{ fontWeight: 550, marginRight: '-0.5px' }}
+              className={`font-sans text-[14px] ${isDark ? 'text-slate-300' : 'text-neutral-600'} select-none leading-none`}
+              style={{ fontWeight: 600, marginRight: '-0.5px' }}
             >
               /
             </span>
             <span 
-              className={`${activeFontClass} text-[26px] sm:text-[30px] md:text-[34px] ${isDark ? 'text-slate-100' : 'text-black'} select-none uppercase leading-none`}
-              style={{ fontWeight: 550 }}
+              className={`font-sans text-[14px] ${isDark ? 'text-slate-100' : 'text-black'} select-none uppercase leading-none`}
+              style={{ fontWeight: 600 }}
             >
               {slashRootNote}
             </span>
@@ -1492,11 +1543,11 @@ export function LeadSheet({
           onTouchEnd={(e) => {
             handleSlotTouchEnd(measure.id, 0, e);
           }}
-          className={`w-full h-full flex items-center justify-center relative select-none transition-all cursor-pointer ${
+          className={`w-full h-full flex items-center justify-center relative select-none cursor-pointer ${
             isSlotEditing
               ? (isDark ? 'bg-sky-950/40 ring-2 ring-inset ring-sky-500/60 z-10' : 'bg-[#e0f2fe]/50 ring-2 ring-inset ring-sky-400/80 z-10')
               : isHighlighted
-              ? 'bg-sky-100/90 text-[#0c4a6e] transition-colors'
+              ? 'bg-sky-100/90 text-[#0c4a6e]'
               : (isDark ? 'hover:bg-slate-800/50' : 'hover:bg-neutral-50/70')
           }`}
           title={isMeasureRepeat ? "Repeat measure (°/°)" : "Click to insert chord"}
@@ -1564,11 +1615,11 @@ export function LeadSheet({
                 onTouchEnd={(e) => {
                   handleSlotTouchEnd(measure.id, sIndex, e);
                 }}
-                className={`flex-1 min-w-0 w-0 h-full flex items-center justify-start p-0 pl-[1px] overflow-visible relative select-none transition-colors duration-100 cursor-pointer ${
+                className={`flex-1 min-w-0 w-0 h-full flex items-center justify-start p-0 pl-[1px] overflow-visible relative select-none cursor-pointer ${
                   isSlotEditing
                     ? (isDark ? 'bg-sky-950/40 ring-2 ring-inset ring-sky-500/60 z-10' : 'bg-[#e0f2fe]/50 ring-2 ring-inset ring-sky-400/80 z-10') 
                     : isHighlighted
-                    ? 'bg-sky-100/90 text-[#0c4a6e] transition-colors'
+                    ? 'bg-sky-100/90 text-[#0c4a6e]'
                     : (isDark ? 'hover:bg-slate-800/50' : 'hover:bg-neutral-50/50')
                 }`}
               >
@@ -1605,9 +1656,16 @@ export function LeadSheet({
     </div>
   );
 
+  // Convert the internal measure structure into a strict 16-cell iReal grid matrix
+  const matrix = buildIRealGridMatrix(
+    currentSong.grid, 
+    currentSong.timeSignature || '4/4', 
+    transposedKeySpelling,
+    semitoneShift
+  );
+
   return (
     <div className={`relative w-full h-screen overflow-hidden flex flex-col print:h-auto print:overflow-visible ${isDark ? 'bg-slate-900 text-slate-100' : 'bg-white text-black'} select-none font-sans`} id="chord_chart_core_view">
-
       {/* ========================================================
           THE CLEAN SHEET BLOCK AREA (FULL WIDTH CANVAS)
           ======================================================== */}
@@ -1616,9 +1674,19 @@ export function LeadSheet({
           canScrollY ? 'overflow-y-auto' : 'overflow-y-hidden'
         } print:overflow-visible print:my-0 print:px-0`} 
         id="music_score_drawing_board"
+        onMouseDown={(e) => {
+          // If the click is directly on the board or systems stack (not on a cell), clear selection
+          if ((e.target as HTMLElement).closest('.ireal-cell') === null) {
+            if (onDeselect) {
+              onDeselect();
+            } else {
+              onSelectSlot(null, null);
+            }
+          }
+        }}
       >
         <div className={`${isDark ? 'bg-slate-900' : 'bg-white'} w-full flex-1 ${
-          (selectedMeasureId && selectedSlotIndex !== null)
+          (selectedMeasureId && selectedSlotIndex !== null && (matrix.length >= 10 && matrix[9]?.some(cell => cell.chord !== null)))
             ? 'px-0 py-[2px] pb-[420px] sm:pb-[480px] lg:pb-[520px] print:p-0'
             : 'px-0 py-[2px] pb-6 print:p-0'
         } rounded-none shadow-none border-none`}>
@@ -1626,11 +1694,11 @@ export function LeadSheet({
           <div className="flex flex-col w-full pt-[2px] print:pt-0" id="systems_stack_box">
 
             {/* 1. Title Bar - Frameless, transparent, borderless, shadowless, part of the scrolling content */}
-            <div className="relative w-full flex-none pt-4 pb-0 px-8 select-none print:hidden z-30 transition-all" id="sheet_header_box">
+            <div className="relative w-full flex-none pt-4 pb-0 px-4 select-none print:hidden z-30" id="sheet_header_box">
               <div className="w-full flex justify-center items-center">
                 <button
                   onClick={() => setIsEditingTitle(true)}
-                  className={`group relative flex flex-col items-center justify-center py-1.5 px-4.5 ${isDark ? 'hover:bg-slate-850 hover:border-slate-800' : 'hover:bg-slate-100/85 hover:border-slate-200'} rounded-xl border border-transparent transition-all cursor-pointer max-w-full`}
+                  className={`group relative flex flex-col items-center justify-center py-1.5 px-2 ${isDark ? 'hover:bg-slate-850 hover:border-slate-800' : 'hover:bg-slate-100/85 hover:border-slate-200'} rounded-xl border border-transparent cursor-pointer max-w-full`}
                   title="Click to edit/format song title"
                   id="header_tune_title_trigger"
                 >
@@ -1641,7 +1709,7 @@ export function LeadSheet({
                       {formatMusicSymbols(currentSong.title.replace(/\n+/g, ' ').trim() || 'Untitled Tune')}
                     </span>
                     {currentSong.subheading && (
-                      <span className={`text-[11.5px] sm:text-xs mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'} tracking-wide text-center leading-tight`}>
+                      <span className={`text-[15.5px] sm:text-[16px] mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'} tracking-wide text-center leading-tight`}>
                         {formatMusicSymbols(currentSong.subheading)}
                       </span>
                     )}
@@ -1678,7 +1746,14 @@ export function LeadSheet({
                 <ChordChartGrid 
                   systems={matrix}
                   isDark={isDark}
-                  onSelectSlot={onSelectSlot}
+                  onSelectSlot={(mId, sIdx) => {
+                    // Check if they are trying to clear selection
+                    if (mId === null || sIdx === null) {
+                      onSelectSlot(null, null);
+                      return;
+                    }
+                    onSelectSlot(mId, sIdx);
+                  }}
                   onDragStart={onDragStart}
                   onDragEnter={onDragEnter}
                   selectedMeasureId={selectedMeasureId}
@@ -1817,7 +1892,42 @@ export function LeadSheet({
                     }`}
                   >
                     <Download className="w-4 h-4 text-[#0c4a6e]" />
-                    <span>Download Chord Chart (.HTML)</span>
+                    <span>Download Chord Chart (.JSON)</span>
+                  </button>
+                </div>
+
+                {/* Option: Export to PDF */}
+                <div className="flex flex-col gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOptionsOpen(false);
+                      setToastMessage("Generating PDF...");
+                      const element = document.getElementById('chord_chart_core_view');
+                      if (element) {
+                        const opt = {
+                          margin: 10,
+                          filename: `${currentSong.title.replace(/\s+/g, '_')}_Chart.pdf`,
+                          image: { type: 'jpeg' as const, quality: 0.98 },
+                          html2canvas: { scale: 2, useCORS: true },
+                          jsPDF: { unit: 'mm' as const, format: 'letter', orientation: 'portrait' as const }
+                        };
+                        html2pdf().set(opt).from(element).save().then(() => {
+                          setToastMessage("PDF Exported Successfully!");
+                        }).catch((err: any) => {
+                          console.error(err);
+                          setToastMessage("Failed to generate PDF.");
+                        });
+                      }
+                    }}
+                    className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-xs ${
+                      isDark
+                        ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
+                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-800'
+                    }`}
+                  >
+                    <Printer className="w-4 h-4 text-[#0c4a6e]" />
+                    <span>Export to PDF (Print)</span>
                   </button>
                 </div>
 
@@ -2127,6 +2237,23 @@ export function LeadSheet({
             )}
           </div>
         </div>
+      )}
+
+      {/* Tactile Floating Back to Library Button (FAB) in the bottom-left corner */}
+      {selectedMeasureId === null && (
+        <button
+          type="button"
+          onClick={onBackToLibrary}
+          className={`fixed bottom-6 left-6 z-45 flex items-center justify-center w-12 h-12 rounded-full transition-all cursor-pointer active:scale-95 border shadow-[0_4px_16px_rgba(0,0,0,0.15)] ${
+            isDark 
+              ? 'bg-slate-900 hover:bg-slate-855 text-slate-200 border-slate-800' 
+              : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/85 shadow-[0_2px_10px_rgba(15,23,42,0.06)]'
+          } backdrop-blur-md`}
+          title="Back to Library"
+          id="floating_back_btn"
+        >
+          <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+        </button>
       )}
 
       {/* Tactile Floating Options/Settings Action Button (FAB) in the bottom-right corner */}
